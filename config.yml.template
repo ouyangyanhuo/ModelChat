@@ -20,7 +20,7 @@
   memory_length: 10
 # 是否开启图像识别功能
   enable_vision: true
-# 模型 Temperature 范围：[0.1]
+# 模型 Temperature 范围：[0,1]
 # 什么是模型 Temperature？ https://zhuanlan.zhihu.com/p/666670367
   model_temperature: 0.7
 # 模型提示词
