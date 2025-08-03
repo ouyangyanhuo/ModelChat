@@ -19,11 +19,25 @@ ollama
 ```
 api_key：你的 OpenAI API Key
 base_url：你的 OpenAI API 地址
-use_local_model：是否启用本地大模型，如果启用本地大模型，将不会使用 api_key 和 basese_url
+use_local_model：Boolean类型，是否启用本地大模型，如果启用本地大模型，将不会使用 api_key 和 basese_url
 model: 你的模型名称
 memory_length：聊天记录记忆长度，每个账号拥有的所有对话长度，包含用户提问、AI回复，例如：用户提问后AI回答，则记为两条。
 system_prompt：大模型提示词，用于为大模型设置一个初始设定，例如名字、性别、年龄等
 ```
+- 模型的记忆文件位于插件目录 `/cache/history.json`，没有该文件会自动生成
+- 用户若要使用本地大模型，请先安装 Ollama 运行环境
+- 解压文件夹名称必须为 ModelChat
+目录结构如下：
+```
+ModelChat/
+├── cache/
+│   └── history.json
+├── __init__.py
+├── chat.py
+├── config.yml
+└── main.py
+```
+
 ## 作者
 [Magneto](https://fmcf.cc)
 
