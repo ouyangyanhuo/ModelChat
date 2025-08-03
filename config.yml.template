@@ -1,0 +1,13 @@
+# API Key
+api_key: "你的 OpenAI API Key"
+# API URL
+base_url: "https://api.moonshot.cn/v1"
+# 是否使用本地模型（若启用本地模型将不会需要API Key、API URL）
+use_local_model: true
+# 选择对话模型
+model: "gemma3:4b"
+# 模型记忆长度
+memory_length: 10
+# 模型提示词
+system_prompt: "你是一个聊天会话机器人，识别用户会话时忽略掉前三个字符“at ” "
+
