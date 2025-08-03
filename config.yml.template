@@ -1,13 +1,28 @@
-# API Key
-api_key: "你的 OpenAI API Key"
-# API URL
-base_url: "https://api.moonshot.cn/v1"
-# 是否使用本地模型（若启用本地模型将不会需要API Key、API URL）
-use_local_model: true
-# 选择对话模型
-model: "gemma3:4b"
+# 若模型拥有图像识别能力，则 聊天API 和 图像API 可以相同
+# 聊天 API
+  # API Key
+  api_key: "你的API Key"
+  # API URL
+  base_url: "https://api.moonshot.cn/v1"
+  # 选择对话模型
+  model: "moonshot-v1-8k-vision-preview"
+# 图像识别 API
+  # API Key
+  vision_api_key: "你的API Key"
+  # API URL
+  vision_base_url: "https://api.moonshot.cn/v1"
+  # 选择对话模型
+  vision_model: "moonshot-v1-8k-vision-preview"
+
+# 是否使用本地模型（本地模型无图像处理能力）
+  use_local_model: false
 # 模型记忆长度
-memory_length: 10
+  memory_length: 10
+# 是否开启图像识别功能
+  enable_vision: true
+# 模型 Temperature 范围：[0.1]
+# 什么是模型 Temperature？ https://zhuanlan.zhihu.com/p/666670367
+  model_temperature: 0.7
 # 模型提示词
-system_prompt: "你是一个聊天会话机器人，识别用户会话时忽略掉前三个字符“at ” "
+    system_prompt: "你是一个聊天会话机器人，识别用户会话时忽略掉前三个字符“at ” "
 
