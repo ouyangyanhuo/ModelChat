@@ -1,8 +1,7 @@
-import base64
 from openai import OpenAI
 from ollama import chat, ChatResponse
-from ncatbot.core import BaseMessage
-import json, yaml, os, requests
+from ncatbot.core import GroupMessage
+import json, yaml, os, requests, base64
 
 class ChatModel:
     def __init__(self, config_path):
@@ -209,7 +208,7 @@ class ChatModel:
                     raise Exception("模型API认证失败，请检查配置文件")
                 raise Exception(f"图像识别出错: {str(e)}, 备用方法也失败: {str(fallback_error)}")
 
-    async def useCloudModel(self, msg: BaseMessage, user_input: str):
+    async def useCloudModel(self, msg: GroupMessage, user_input: str):
         """使用云端模型处理消息，具有记忆能力"""
         try:
             # 构建消息列表，包含历史记录
@@ -236,7 +235,7 @@ class ChatModel:
                 reply = f"请求出错了：{str(e)}"
         return reply
 
-    async def useLocalModel(self, msg: BaseMessage, user_input: str):
+    async def useLocalModel(self, msg: GroupMessage, user_input: str):
         """使用本地模型处理消息"""
         try:
             # 构建消息列表，包含历史记录

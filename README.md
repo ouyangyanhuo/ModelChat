@@ -39,14 +39,18 @@ ModelChat/
 │   └── history.json
 ├── __init__.py
 ├── chat.py
+├── main.py
 ├── config.yml
-└── main.py
+└── banlist.json
 ```
 
 ## 作者
 [Magneto](https://fmcf.cc)
 
 ## 更新日志
+- 1.3.0
+  - 增加 Ban user & Ban group
+  - 修改违禁词存储结构
 - 1.2.0
   - 违禁词检测
   - Markdown 格式符号清理

@@ -1,14 +1,17 @@
 from ncatbot.plugin import BasePlugin, CompatibleEnrollment
 from ncatbot.core import BaseMessage
 from .chat import ChatModel
-import os,yaml
+from .ban import BanManager
+import os, yaml
 
 bot = CompatibleEnrollment  # 兼容注册器
 chat_model_instance = ChatModel(os.path.join(os.path.dirname(__file__), 'config.yml'))  # 创建 ChatModel 实例
+ban_manager = BanManager(os.path.dirname(__file__))  # 创建 BanManager 实例
+
 
 class ModelChat(BasePlugin):
     name = "ModelChat"
-    version = "1.1.0"
+    version = "1.3.0"
 
     async def on_load(self):
         # 插件加载提示
@@ -29,14 +32,24 @@ class ModelChat(BasePlugin):
             handler=self.chat_history,
             prefix="/clear chat_history"
         )
+        self.register_user_func(
+            name="Ban Manager",
+            handler=self.ban_manager,
+            prefix="/ban_chat"
+        )
 
     async def chat(self, msg: BaseMessage):
+        # 检查是否被ban
+        if ban_manager.is_banned(msg):
+            await msg.reply(text="您或您所在的群组已被禁止使用此功能。")
+            return
+
         text = msg.raw_message.strip()
         user_input = text[3:].strip()
         print("FUCKING START CHAT")
 
         # 检查用户输入是否包含违禁词
-        if chat_model_instance._check_blocked_words(user_input):
+        if ban_manager.check_blocked_words(user_input):
             await msg.reply(text="您的消息包含违禁词，无法处理。")
             return
 
@@ -54,9 +67,9 @@ class ModelChat(BasePlugin):
                 # 使用图像识别功能
                 image_description = await chat_model_instance.recognize_image(image_url)
                 user_input = f"用户发送了一张图片，图片描述是：{image_description}。用户说：{user_input}"
-                
+
                 # 检查图片描述是否包含违禁词
-                if chat_model_instance._check_blocked_words(image_description):
+                if ban_manager.check_blocked_words(image_description):
                     await msg.reply(text="图片内容包含违禁词，无法处理。")
                     return
             elif image_url and not self.chat_model.get('enable_vision', True):
@@ -79,5 +92,44 @@ class ModelChat(BasePlugin):
         await msg.reply(text=reply)
 
     async def chat_history(self, msg: BaseMessage):
+        # 检查是否被ban
+        if ban_manager.is_banned(msg):
+            await msg.reply(text="您或您所在的群组已被禁止使用此功能。")
+            return
+
         reply = await chat_model_instance.clear_user_history(msg.user_id)
         await msg.reply(text=reply)
+
+    async def ban_manager(self, msg: BaseMessage):
+        """管理ban列表的指令"""
+        # 检查是否被ban
+        if ban_manager.is_banned(msg):
+            reply_text = "您或您所在的群组已被禁止使用此功能。"
+            await msg.reply(text=reply_text)
+            return
+            
+        text = msg.raw_message.strip()
+        parts = text.split()
+        
+        if len(parts) < 3:
+            reply_text = "指令格式错误。正确格式：/ban_chat group <群号> 或 /ban_chat user <QQ号>"
+        else:
+            action = parts[1]  # group 或 user
+            target = parts[2]  # 群号或QQ号
+            
+            if action == "group":
+                if ban_manager.add_ban("group", target):
+                    reply_text = f"已将群组 {target} 添加到ban列表。"
+                else:
+                    reply_text = f"群组 {target} 已在ban列表中。"
+                    
+            elif action == "user":
+                if ban_manager.add_ban("user", target):
+                    reply_text = f"已将用户 {target} 添加到ban列表。"
+                else:
+                    reply_text = f"用户 {target} 已在ban列表中。"
+                    
+            else:
+                reply_text = "指令格式错误。正确格式：/ban_chat group <群号> 或 /ban_chat user <QQ号>"
+        
+        await msg.reply(text=reply_text)
