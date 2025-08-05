@@ -25,6 +25,43 @@ class ChatModel:
         # 初始化历史记录存储
         self.history_file = os.path.abspath(os.path.join(os.path.dirname(config_path), './cache/history.json')).replace("\\", "/")
         self.history = self._load_history()
+        
+        # 初始化违禁词列表
+        self.blocklist_file = os.path.abspath(os.path.join(os.path.dirname(config_path), 'blocklist.json'))
+        self.blocklist = self._load_blocklist()
+
+    def _load_blocklist(self):
+        """加载违禁词列表"""
+        try:
+            if os.path.exists(self.blocklist_file):
+                with open(self.blocklist_file, 'r', encoding='utf-8') as f:
+                    blocklist_data = json.load(f)
+                    # 确保返回的是列表
+                    if isinstance(blocklist_data, list):
+                        return blocklist_data
+        except Exception as e:
+            print(f"加载违禁词列表出错: {e}")
+        return []
+
+    def _check_blocked_words(self, text):
+        """检查文本是否包含违禁词"""
+        for block_word in self.blocklist:
+            if block_word in text:
+                return True
+        return False
+
+    def _clean_reply(self, text):
+        """清理回复中的Markdown格式符号"""
+        # 从配置文件中获取需要清理的符号
+        cleanup_chars = self.config.get('cleanup_chars', [
+            "**",  # 粗体符号
+            "#"    # 标题符号
+        ])
+        
+        for char in cleanup_chars:
+            text = text.replace(char, "")
+        
+        return text
 
     def _load_history(self):
         """加载历史记录"""
@@ -140,7 +177,8 @@ class ChatModel:
                 max_tokens=2048
             )
             
-            return response.choices[0].message.content.strip()
+            reply = self._clean_reply(response.choices[0].message.content.strip())
+            return reply
         except Exception as e:
             # 检查是否是认证错误
             if "401" in str(e) or "Unauthorized" in str(e):
@@ -163,7 +201,8 @@ class ChatModel:
                     max_tokens=2048
                 )
                 
-                return f"图片识别功能暂时不可用，但用户发送了图片。{response.choices[0].message.content.strip()}"
+                reply = self._clean_reply(f"图片识别功能暂时不可用，但用户发送了图片。{response.choices[0].message.content.strip()}")
+                return reply
             except Exception as fallback_error:
                 # 检查备用方法是否也是认证错误
                 if "401" in str(fallback_error) or "Unauthorized" in str(fallback_error):
@@ -182,7 +221,7 @@ class ChatModel:
                 temperature=self.config.get('model_temperature', 0.6),
                 stream=False
             )
-            reply = response.choices[0].message.content.strip()
+            reply = self._clean_reply(response.choices[0].message.content.strip())
             
             # 保存当前对话到历史记录
             if hasattr(msg, 'user_id'):
@@ -206,7 +245,7 @@ class ChatModel:
                 model=self.config['model'],
                 messages=messages
             )
-            reply = response.message.content.strip()
+            reply = self._clean_reply(response.message.content.strip())
 
             # 保存当前对话到历史记录
             if hasattr(msg, 'user_id'):

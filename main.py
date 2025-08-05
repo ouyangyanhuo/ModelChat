@@ -35,6 +35,11 @@ class ModelChat(BasePlugin):
         user_input = text[3:].strip()
         print("FUCKING START CHAT")
 
+        # 检查用户输入是否包含违禁词
+        if chat_model_instance._check_blocked_words(user_input):
+            await msg.reply(text="您的消息包含违禁词，无法处理。")
+            return
+
         # 检查是否是图像消息
         image_url = None
         if hasattr(msg, 'message') and isinstance(msg.message, list):
@@ -49,6 +54,11 @@ class ModelChat(BasePlugin):
                 # 使用图像识别功能
                 image_description = await chat_model_instance.recognize_image(image_url)
                 user_input = f"用户发送了一张图片，图片描述是：{image_description}。用户说：{user_input}"
+                
+                # 检查图片描述是否包含违禁词
+                if chat_model_instance._check_blocked_words(image_description):
+                    await msg.reply(text="图片内容包含违禁词，无法处理。")
+                    return
             elif image_url and not self.chat_model.get('enable_vision', True):
                 # 图像识别功能未开启,但检测是否是本地模型
                 if self.chat_model.get('use_local_model'):

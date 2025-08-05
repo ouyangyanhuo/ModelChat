@@ -47,6 +47,9 @@ ModelChat/
 [Magneto](https://fmcf.cc)
 
 ## 更新日志
+- 1.2.0
+  - 违禁词检测
+  - Markdown 格式符号清理
 - 1.1.0
   - 图像识别
   - 清除记忆指令
