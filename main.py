@@ -8,7 +8,7 @@ chat_model_instance = ChatModel(os.path.join(os.path.dirname(__file__), 'config.
 
 class ModelChat(BasePlugin):
     name = "ModelChat"
-    version = "1.1.0"
+    version = "1.2.0"
 
     async def on_load(self):
         # 插件加载提示
