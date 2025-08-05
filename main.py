@@ -1,5 +1,5 @@
 from ncatbot.plugin import BasePlugin, CompatibleEnrollment
-from ncatbot.core import BaseMessage
+from ncatbot.core import BaseMessage, GroupMessage
 from .chat import ChatModel
 from .ban import BanManager
 import os, yaml
@@ -32,7 +32,7 @@ class ModelChat(BasePlugin):
             handler=self.chat_history,
             prefix="/clear chat_history"
         )
-        self.register_user_func(
+        self.register_admin_func(
             name="Ban Manager",
             handler=self.ban_manager,
             prefix="/ban_chat"
@@ -100,11 +100,18 @@ class ModelChat(BasePlugin):
         reply = await chat_model_instance.clear_user_history(msg.user_id)
         await msg.reply(text=reply)
 
-    async def ban_manager(self, msg: BaseMessage):
+    async def ban_manager(self, msg: GroupMessage):
         """管理ban列表的指令"""
         # 检查是否被ban
         if ban_manager.is_banned(msg):
             reply_text = "您或您所在的群组已被禁止使用此功能。"
+            await msg.reply(text=reply_text)
+            return
+            
+        # 检查是否为管理员
+        admins = self.chat_model.get('admins', [])
+        if hasattr(msg, 'user_id') and str(msg.user_id) not in admins:
+            reply_text = "您没有权限执行此操作。"
             await msg.reply(text=reply_text)
             return
             

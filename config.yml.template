@@ -29,3 +29,7 @@
   cleanup_chars:
     - "**"
     - "#"
+# 管理员列表(用于 ban 人/群)
+  admins:
+    - "userid"
+    - "userid"
