@@ -10,7 +10,8 @@
 指令：
 - `/chat [对话内容]`     对话
 - `/clear chat_history` 清除对话记录
-
+- `/ban_chat group <groupID>`||`/ban_chat user <userID>` 封禁用户或群聊
+- `聊天菜单`            显示菜单
 ## 使用配置
 -  安装依赖
 
@@ -48,6 +49,9 @@ ModelChat/
 [Magneto](https://fmcf.cc)
 
 ## 更新日志
+- 1.4.0
+  - 重写命令注册范式
+  - 新增菜单系统
 - 1.3.0
   - 增加 Ban user & Ban group
   - 修改违禁词存储结构

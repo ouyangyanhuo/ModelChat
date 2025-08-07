@@ -2,7 +2,7 @@ from ncatbot.plugin import BasePlugin, CompatibleEnrollment
 from ncatbot.core import BaseMessage, GroupMessage
 from .chat import ChatModel
 from .ban import BanManager
-import os, yaml
+import os,yaml
 
 bot = CompatibleEnrollment  # 兼容注册器
 chat_model_instance = ChatModel(os.path.join(os.path.dirname(__file__), 'config.yml'))  # 创建 ChatModel 实例
@@ -11,7 +11,11 @@ ban_manager = BanManager(os.path.dirname(__file__))  # 创建 BanManager 实例
 
 class ModelChat(BasePlugin):
     name = "ModelChat"
-    version = "1.3.0"
+    version = "1.4.0"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.commands = []
 
     async def on_load(self):
         # 插件加载提示
@@ -21,29 +25,52 @@ class ModelChat(BasePlugin):
         config_path = os.path.join(os.path.dirname(__file__), 'config.yml')
         with open(config_path, 'r', encoding='utf-8') as f:
             self.chat_model = yaml.safe_load(f)
-        # 注册指令
-        self.register_user_func(
-            name="ModelChat",
-            handler=self.chat,
-            prefix="/chat"
-        )
-        self.register_user_func(
-            name="Clear History",
-            handler=self.chat_history,
-            prefix="/clear chat_history"
-        )
-        self.register_admin_func(
-            name="Ban Manager",
-            handler=self.ban_manager,
-            prefix="/ban_chat"
-        )
+        # 注册指令并保存指令信息
+        self.commands = [
+            {
+                "name": "ModelChat",
+                "prefix": "/chat",
+                "handler": self.chat,
+                "description": "聊天功能",
+                "examples": ["/chat <message>","/chat <photo>","/chat <message>+<photo>"]
+            },
+            {
+                "name": "Clear History",
+                "prefix": "/clear chat_history",
+                "handler": self.chat_history,
+                "description": "清除聊天记忆",
+                "examples": ["/clear chat_history"]
+            },
+            {
+                "name": "Ban Manager",
+                "prefix": "/ban_chat",
+                "handler": self.ban_manager,
+                "description": "禁止群组/人 使用该插件",
+                "examples": ["/ban_chat group <groupID>","/ban_chat user <userID>"]
+            },
+            {
+                "name": "Chat Menu",
+                "prefix": "聊天菜单",
+                "handler": self.chat_menu,
+                "description": "显示聊天插件的使用菜单",
+                "examples": ["聊天菜单"]
+            }
+        ]
+        
+        # 实际注册指令
+        for cmd in self.commands:
+            self.register_user_func(
+                name=cmd["name"],
+                handler=cmd["handler"],
+                prefix=cmd["prefix"]
+            )
 
     async def chat(self, msg: BaseMessage):
         # 检查是否被ban
         if ban_manager.is_banned(msg):
             await msg.reply(text="您或您所在的群组已被禁止使用此功能。")
             return
-
+            
         text = msg.raw_message.strip()
         user_input = text[3:].strip()
         print("FUCKING START CHAT")
@@ -66,8 +93,8 @@ class ModelChat(BasePlugin):
             if image_url and self.chat_model.get('enable_vision', True) and not self.chat_model.get('use_local_model'):
                 # 使用图像识别功能
                 image_description = await chat_model_instance.recognize_image(image_url)
-                user_input = f"用户发送了一张图片，图片描述是：{image_description}。用户说：{user_input}"
-
+                user_input = f"用户发送了一张图片，图片描述是：{image_description}。注意，现在你已经看到图片了，不能回答用户说你没看到图片。用户说：{user_input}。"
+                
                 # 检查图片描述是否包含违禁词
                 if ban_manager.check_blocked_words(image_description):
                     await msg.reply(text="图片内容包含违禁词，无法处理。")
@@ -140,3 +167,34 @@ class ModelChat(BasePlugin):
                 reply_text = "指令格式错误。正确格式：/ban_chat group <群号> 或 /ban_chat user <QQ号>"
         
         await msg.reply(text=reply_text)
+
+    async def chat_menu(self, msg: BaseMessage):
+        """显示聊天菜单"""
+        # 检查是否被ban
+        if ban_manager.is_banned(msg):
+            await msg.reply(text="您或您所在的群组已被禁止使用此功能。")
+            return
+            
+        menu_text = "=== 大模型聊天插件使用菜单 ===\n\n"
+        
+        # 遍历所有指令信息
+        for cmd in self.commands:
+            # 跳过菜单本身
+            if cmd.get('prefix') == "聊天菜单":
+                continue
+                
+            menu_text += f"指令: {cmd.get('prefix', 'N/A')}\n"
+            menu_text += f"描述: {cmd.get('description', '暂无描述')}\n"
+            
+            examples = cmd.get('examples', [])
+            if examples:
+                menu_text += "示例:\n"
+                for example in examples:
+                    menu_text += f"  - {example}\n"
+            else:
+                menu_text += "示例: 暂无示例\n"
+            
+            menu_text += "\n"
+            
+        menu_text += "========================"
+        await msg.reply(text=menu_text)
