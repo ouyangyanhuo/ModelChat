@@ -11,7 +11,7 @@ ban_manager = BanManager(os.path.dirname(__file__))  # 创建 BanManager 实例
 
 class ModelChat(BasePlugin):
     name = "ModelChat"
-    version = "1.4.0"
+    version = "1.5.0"
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -90,7 +90,7 @@ class ModelChat(BasePlugin):
 
         try:
             # 如果是图像消息且开启了图像识别功能且不是本地模型，进行图像识别
-            if image_url and self.chat_model.get('enable_vision', True) and not self.chat_model.get('use_local_model'):
+            if image_url and self.chat_model.get('enable_vision', True):
                 # 使用图像识别功能
                 image_description = await chat_model_instance.recognize_image(image_url)
                 user_input = f"用户发送了一张图片，图片描述是：{image_description}。注意，现在你已经看到图片了，不能回答用户说你没看到图片。用户说：{user_input}。"
@@ -100,11 +100,8 @@ class ModelChat(BasePlugin):
                     await msg.reply(text="图片内容包含违禁词，无法处理。")
                     return
             elif image_url and not self.chat_model.get('enable_vision', True):
-                # 图像识别功能未开启,但检测是否是本地模型
-                if self.chat_model.get('use_local_model'):
-                    user_input = f"用户发送了一张图片，但用户使用的是本地模型，无法进行图像识别。用户说：{user_input}"
-                else:
-                    user_input = f"用户发送了一张图片，但图像识别功能未开启。用户说：{user_input}"
+                # 图像识别功能未开启
+                user_input = f"用户发送了一张图片，但图像识别功能未开启。用户说：{user_input}"
 
             # 根据配置决定使用本地模型还是云端模型
             if self.chat_model['use_local_model']:
@@ -129,43 +126,19 @@ class ModelChat(BasePlugin):
 
     async def ban_manager(self, msg: GroupMessage):
         """管理ban列表的指令"""
-        # 检查是否被ban
-        if ban_manager.is_banned(msg):
-            reply_text = "您或您所在的群组已被禁止使用此功能。"
+        # 使用ban_manager处理命令
+        reply_text, should_return = ban_manager.handle_ban_command(
+            msg, 
+            self.chat_model.get('admins', []), 
+            chat_model_instance
+        )
+        
+        # 如果需要提前返回（如被ban或无权限）
+        if should_return:
             await msg.reply(text=reply_text)
             return
             
-        # 检查是否为管理员
-        admins = self.chat_model.get('admins', [])
-        if hasattr(msg, 'user_id') and str(msg.user_id) not in admins:
-            reply_text = "您没有权限执行此操作。"
-            await msg.reply(text=reply_text)
-            return
-            
-        text = msg.raw_message.strip()
-        parts = text.split()
-        
-        if len(parts) < 3:
-            reply_text = "指令格式错误。正确格式：/ban_chat group <群号> 或 /ban_chat user <QQ号>"
-        else:
-            action = parts[1]  # group 或 user
-            target = parts[2]  # 群号或QQ号
-            
-            if action == "group":
-                if ban_manager.add_ban("group", target):
-                    reply_text = f"已将群组 {target} 添加到ban列表。"
-                else:
-                    reply_text = f"群组 {target} 已在ban列表中。"
-                    
-            elif action == "user":
-                if ban_manager.add_ban("user", target):
-                    reply_text = f"已将用户 {target} 添加到ban列表。"
-                else:
-                    reply_text = f"用户 {target} 已在ban列表中。"
-                    
-            else:
-                reply_text = "指令格式错误。正确格式：/ban_chat group <群号> 或 /ban_chat user <QQ号>"
-        
+        # 发送回复
         await msg.reply(text=reply_text)
 
     async def chat_menu(self, msg: BaseMessage):

@@ -82,3 +82,37 @@ class BanManager:
     def get_blocked_words(self):
         """获取违禁词列表"""
         return self.banlist["blocked_words"]
+
+    def handle_ban_command(self, msg, admins, chat_model_instance):
+        """处理ban命令"""
+        # 检查是否被ban
+        if self.is_banned(msg):
+            return "您或您所在的群组已被禁止使用此功能。", True
+
+        # 检查是否为管理员
+        if hasattr(msg, 'user_id') and str(msg.user_id) not in admins:
+            return "您没有权限执行此操作。", True
+
+        text = msg.raw_message.strip()
+        parts = text.split()
+
+        if len(parts) < 3:
+            return "指令格式错误。正确格式：/ban_chat group <群号> 或 /ban_chat user <QQ号>", False
+        else:
+            action = parts[1]  # group 或 user
+            target = parts[2]  # 群号或QQ号
+
+            if action == "group":
+                if self.add_ban("group", target):
+                    return f"已将群组 {target} 添加到ban列表。", False
+                else:
+                    return f"群组 {target} 已在ban列表中。", False
+
+            elif action == "user":
+                if self.add_ban("user", target):
+                    return f"已将用户 {target} 添加到ban列表。", False
+                else:
+                    return f"用户 {target} 已在ban列表中。", False
+
+            else:
+                return "指令格式错误。正确格式：/ban_chat group <群号> 或 /ban_chat user <QQ号>", False

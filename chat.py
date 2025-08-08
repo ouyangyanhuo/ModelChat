@@ -113,6 +113,12 @@ class ChatModel:
         except Exception as e:
             print(f"更新用户历史记录时出错: {e}")
 
+    def _save_conversation_to_history(self, msg, user_input, reply):
+        """保存对话到历史记录"""
+        if hasattr(msg, 'user_id'):
+            self._update_user_history(msg.user_id, {"role": "user", "content": user_input})
+            self._update_user_history(msg.user_id, {"role": "assistant", "content": reply})
+
     def _build_messages(self, user_input: str, user_id: str = None):
         """构建消息列表"""
         messages = []
@@ -223,9 +229,7 @@ class ChatModel:
             reply = self._clean_reply(response.choices[0].message.content.strip())
             
             # 保存当前对话到历史记录
-            if hasattr(msg, 'user_id'):
-                self._update_user_history(msg.user_id, {"role": "user", "content": user_input})
-                self._update_user_history(msg.user_id, {"role": "assistant", "content": reply})
+            self._save_conversation_to_history(msg, user_input, reply)
             
         except Exception as e:
             # 检查是否是认证错误
@@ -247,9 +251,7 @@ class ChatModel:
             reply = self._clean_reply(response.message.content.strip())
 
             # 保存当前对话到历史记录
-            if hasattr(msg, 'user_id'):
-                self._update_user_history(msg.user_id, {"role": "user", "content": user_input})
-                self._update_user_history(msg.user_id, {"role": "assistant", "content": reply})
+            self._save_conversation_to_history(msg, user_input, reply)
         except Exception as e:
             reply = f"请求出错了：{str(e)}"
         return reply

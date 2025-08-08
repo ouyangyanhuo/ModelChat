@@ -12,6 +12,7 @@
 - `/clear chat_history` 清除对话记录
 - `/ban_chat group <groupID>`||`/ban_chat user <userID>` 封禁用户或群聊
 - `聊天菜单`            显示菜单
+
 ## 使用配置
 -  安装依赖
 
@@ -33,6 +34,8 @@ pip install -r requirements.txt
 
 - 解压文件夹名称必须为 ModelChat
 
+- 模型图像识别方式：user input photo -> vision model -> text -> chat model -> output, 因此需要调用两次 API，无论是本地大模型还是云端大模型都是如此
+
 目录结构如下：
 ```
 ModelChat/
@@ -49,6 +52,9 @@ ModelChat/
 [Magneto](https://fmcf.cc)
 
 ## 更新日志
+- 1.5.0
+  - 优化代码构成
+  - 本地模型支持图像识别（需对接云端接口）
 - 1.4.0
   - 重写命令注册范式
   - 新增菜单系统
