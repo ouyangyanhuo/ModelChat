@@ -103,18 +103,10 @@ class ModelChat(BasePlugin):
                 # 图像识别功能未开启
                 user_input = f"用户发送了一张图片，但图像识别功能未开启。用户说：{user_input}"
 
-            # 根据配置决定使用哪种模型
-            print(f"Checking model selection - enable_mcp: {self.chat_model.get('enable_mcp', False)}")
-            print(f"chat_model_instance.mcp_enabled: {chat_model_instance.mcp_enabled}")
-            
-            if self.chat_model.get('enable_mcp', False) and chat_model_instance.mcp_enabled:
-                print("Using MCP model")
-                reply = await chat_model_instance.useMCPModel(msg, user_input)
-            elif self.chat_model['use_local_model']:
-                print("Using local model")
+            # 根据配置决定使用本地模型还是云端模型
+            if self.chat_model['use_local_model']:
                 reply = await chat_model_instance.useLocalModel(msg, user_input)
             else:
-                print("Using cloud model")
                 reply = await chat_model_instance.useCloudModel(msg, user_input)
 
         except Exception as e:
