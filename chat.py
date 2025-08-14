@@ -3,6 +3,15 @@ from ollama import chat, ChatResponse
 from ncatbot.core import GroupMessage
 import json, yaml, os, requests, base64
 
+# 添加MCP相关导入
+try:
+    from mcp import ClientSession, StdioServerParameters
+    from mcp.client.stdio import stdio_client
+    HAS_MCP = True
+except ImportError:
+    HAS_MCP = False
+    print("MCP库未安装，MCP功能将不可用")
+
 class ChatModel:
     def __init__(self, config_path):
         """初始化参数"""
@@ -28,6 +37,39 @@ class ChatModel:
         # 初始化违禁词列表
         self.blocklist_file = os.path.abspath(os.path.join(os.path.dirname(config_path), 'blocklist.json'))
         self.blocklist = self._load_blocklist()
+        
+        # 初始化MCP配置
+        self.mcp_enabled = self.config.get('enable_mcp', False) and HAS_MCP
+        print(f"MCP enabled in config: {self.config.get('enable_mcp', False)}")
+        print(f"HAS_MCP: {HAS_MCP}")
+        print(f"Initial mcp_enabled: {self.mcp_enabled}")
+        
+        if self.mcp_enabled:
+            self.mcp_config = self._load_mcp_config(config_path)
+            print(f"MCP config loaded: {self.mcp_config}")
+            # 如果启用了MCP但配置不可用，则禁用MCP功能
+            if self.mcp_config is None:
+                self.mcp_enabled = False
+                print("MCP功能已启用但未找到配置文件，请创建 mcp_config.yml 文件")
+            else:
+                print("MCP功能已启用且配置文件已加载")
+        else:
+            self.mcp_config = None
+            print("MCP功能未启用或MCP库未安装")
+
+    def _load_mcp_config(self, config_path):
+        """加载MCP配置"""
+        mcp_config_path = os.path.join(os.path.dirname(config_path), 'mcp_config.yml')
+        try:
+            if os.path.exists(mcp_config_path):
+                with open(mcp_config_path, 'r', encoding='utf-8') as f:
+                    return yaml.safe_load(f)
+            else:
+                # 如果配置文件不存在，返回None
+                return None
+        except Exception as e:
+            print(f"加载MCP配置出错: {e}")
+            return None
 
     def _load_blocklist(self):
         """加载违禁词列表"""
@@ -254,6 +296,111 @@ class ChatModel:
             self._save_conversation_to_history(msg, user_input, reply)
         except Exception as e:
             reply = f"请求出错了：{str(e)}"
+        return reply
+
+    async def useMCPModel(self, msg: GroupMessage, user_input: str):
+        """使用MCP模型处理消息"""
+        print(f"useMCPModel called with input: {user_input}")
+        
+        if not self.mcp_enabled:
+            print("MCP not enabled, returning")
+            return "MCP功能未启用或未安装相关依赖"
+        
+        if not self.mcp_config:
+            print("MCP config not found, returning")
+            return "未找到MCP配置文件，请创建 mcp_config.yml 文件配置MCP服务"
+        
+        print(f"MCP config: {self.mcp_config}")
+        
+        try:
+            # 获取默认MCP服务配置
+            default_mcp_name = self.mcp_config.get('default_mcp')
+            mcp_servers = self.mcp_config.get('mcp_servers', {})
+            
+            print(f"Default MCP name: {default_mcp_name}")
+            print(f"MCP servers: {mcp_servers}")
+            
+            if not default_mcp_name:
+                return "未指定默认MCP服务，请在 mcp_config.yml 中设置 default_mcp"
+            
+            if default_mcp_name not in mcp_servers:
+                return f"未找到名为 {default_mcp_name} 的MCP服务"
+            
+            mcp_server_config = mcp_servers[default_mcp_name]
+            if not mcp_server_config.get('enabled', False):
+                return f"MCP服务 {default_mcp_name} 未启用"
+            
+            # 构建消息列表，包含历史记录
+            messages = self._build_messages(user_input, msg.user_id if hasattr(msg, 'user_id') else None)
+            
+            # 根据MCP服务类型进行连接
+            mcp_type = mcp_server_config.get('type', 'stdio')
+            
+            print(f"MCP type: {mcp_type}")
+            
+            if mcp_type == 'stdio':
+                command = mcp_server_config.get('command')
+                args = mcp_server_config.get('args', [])
+                
+                print(f"Command: {command}")
+                print(f"Args: {args}")
+                
+                if not command:
+                    return "MCP服务器配置不正确：缺少命令"
+                
+                # 使用MCP客户端与服务器通信
+                # 注意：StdioServerParameters需要command是字符串，args是列表
+                try:
+                    async with stdio_client(StdioServerParameters(command=command, args=args)) as (read, write):
+                        async with ClientSession(read, write) as session:
+                            # 先列出工具看看MCP服务是否正常工作
+                            try:
+                                tools_result = await session.list_tools()
+                                available_tools = [tool.name for tool in tools_result.tools]
+                                print(f"Available tools: {available_tools}")
+                                
+                                # 根据可用工具选择合适的调用方式
+                                if "查询12306购票信息" in available_tools and any(keyword in user_input for keyword in ["火车票", "车次", "余票", "12306"]):
+                                    # 对于12306相关查询，使用专用工具
+                                    result = await session.call_tool("查询12306购票信息", {"prompt": user_input})
+                                else:
+                                    # 使用通用聊天工具
+                                    result = await session.call_tool("chat", {"messages": messages})
+                                    
+                            except Exception as tools_error:
+                                print(f"List tools error: {tools_error}")
+                                # 如果无法列出工具，直接尝试使用chat工具
+                                result = await session.call_tool("chat", {"messages": messages})
+                            
+                            if result and hasattr(result, 'content'):
+                                reply = self._clean_reply(str(result.content))
+                            elif result and hasattr(result, 'text'):
+                                reply = self._clean_reply(str(result.text))
+                            else:
+                                reply = "MCP服务器未返回有效响应"
+                except Exception as client_error:
+                    print(f"Client connection error: {client_error}")
+                    import traceback
+                    traceback.print_exc()
+                    return f"MCP客户端连接出错：{str(client_error)}"
+                            
+            elif mcp_type == 'http':
+                # HTTP类型的MCP服务支持（占位）
+                url = mcp_server_config.get('url')
+                if not url:
+                    return "MCP服务器配置不正确：缺少URL"
+                reply = "HTTP类型的MCP服务暂未实现"
+            else:
+                return f"不支持的MCP服务类型: {mcp_type}"
+            
+            # 保存当前对话到历史记录
+            self._save_conversation_to_history(msg, user_input, reply)
+            
+        except Exception as e:
+            print(f"MCP error: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            reply = f"MCP请求出错了：{str(e)}"
         return reply
 
     async def clear_user_history(self, user_id: str):

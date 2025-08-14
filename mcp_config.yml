@@ -1,0 +1,26 @@
+# MCP 配置文件
+
+# 默认使用的MCP服务
+default_mcp: "12306-mcp"
+
+# MCP服务列表
+mcp_servers:
+  # 12306火车票查询服务
+  "12306-mcp":
+    enabled: true
+    type: "stdio"
+    command: "npx"
+    args: ["-y", "12306-mcp"]
+
+  # 可以添加更多MCP服务
+  # "another-mcp":
+  #   enabled: false
+  #   type: "stdio"
+  #   command: ["node"]
+  #   args: ["/path/to/mcp/server.js"]
+
+  # HTTP类型的MCP服务示例
+  # "http-mcp":
+  #   enabled: false
+  #   type: "http"
+  #   url: "http://localhost:8000/mcp"

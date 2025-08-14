@@ -1,0 +1,24 @@
+# MCP 配置文件模板
+
+# 默认使用的MCP服务
+default_mcp: "example-mcp"
+
+# MCP服务列表
+mcp_servers:
+  # 示例MCP服务配置
+  # 示例MCP服务配置
+  "example-mcp":
+    enabled: false
+    type: "stdio"  # 或 "http"
+    # stdio 类型配置
+    command: []
+    args: []
+    # http 类型配置
+    # url: ""
+
+  # 12306火车票查询服务示例
+  "12306-mcp":
+    enabled: true
+    type: "stdio"
+    command: ["npx"]
+    args: ["-y", "12306-mcp"]
