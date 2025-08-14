@@ -42,6 +42,7 @@ ModelChat/
 ├── cache/
 │   └── history.json
 ├── __init__.py
+├── ban.py
 ├── chat.py
 ├── main.py
 ├── config.yml
