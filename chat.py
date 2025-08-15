@@ -1,7 +1,70 @@
 from openai import OpenAI
 from ollama import chat, ChatResponse
-from ncatbot.core import GroupMessage
+from ncatbot.core import GroupMessage, BaseMessage
+from .ban import BanManager
 import json, yaml, os, requests, base64
+
+
+class ChatUtils:
+    def __init__(self, config_path):
+        """初始化工具类"""
+        self.config_path = config_path
+        # 不直接创建chat_model_instance，而是在使用时传入实例
+        self.ban_manager = BanManager(os.path.dirname(config_path))
+
+    async def check_ban_and_blocked_words(self, msg: BaseMessage, chat_model_instance, user_input: str = ""):
+        """检查是否被ban或包含违禁词"""
+        # 检查是否被ban
+        if self.ban_manager.is_banned(msg):
+            await msg.reply(text="您或您所在的群组已被禁止使用此功能。")
+            return True
+
+        # 检查用户输入是否包含违禁词
+        if user_input and self.ban_manager.check_blocked_words(user_input):
+            await msg.reply(text="您的消息包含违禁词，无法处理。")
+            return True
+
+        return False
+
+    async def process_image_input(self, msg: BaseMessage, chat_model_instance, user_input: str):
+        """处理图像输入"""
+        image_url = None
+        if hasattr(msg, 'message') and isinstance(msg.message, list):
+            for segment in msg.message:
+                if isinstance(segment, dict) and segment.get("type") == "image":
+                    image_url = segment.get("data", {}).get("url")
+                    break
+
+        # 如果是图像消息且开启了图像识别功能且不是本地模型，进行图像识别
+        if image_url and chat_model_instance.config.get('enable_vision', True):
+            # 使用图像识别功能
+            image_description = await chat_model_instance.recognize_image(image_url)
+            user_input = f"用户发送了一张图片，图片描述是：{image_description}。注意，现在你已经看到图片了，不能回答用户说你没看到图片。用户说：{user_input}。"
+
+            # 检查图片描述是否包含违禁词
+            if self.ban_manager.check_blocked_words(image_description):
+                await msg.reply(text="图片内容包含违禁词，无法处理。")
+                return None
+        elif image_url and not chat_model_instance.config.get('enable_vision', True):
+            # 图像识别功能未开启
+            user_input = f"用户发送了一张图片，但图像识别功能未开启。用户说：{user_input}"
+
+        return user_input
+
+    async def generate_response(self, msg: BaseMessage, chat_model_instance, user_input: str):
+        """生成模型回复"""
+        try:
+            # 根据配置决定使用本地模型还是云端模型
+            if chat_model_instance.config['use_local_model']:
+                reply = await chat_model_instance.useLocalModel(msg, user_input)
+            else:
+                reply = await chat_model_instance.useCloudModel(msg, user_input)
+
+        except Exception as e:
+            reply = f"{str(e)}"
+
+        return reply
+
 
 class ChatModel:
     def __init__(self, config_path):
@@ -249,6 +312,7 @@ class ChatModel:
 
             # 保存当前对话到历史记录
             self._save_conversation_to_history(msg, user_input, reply)
+            
         except Exception as e:
             reply = f"请求出错了：{str(e)}"
         return reply
