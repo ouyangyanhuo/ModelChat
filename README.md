@@ -12,7 +12,8 @@
 - `/start_chat`         开启持续对话
 - `/stop_chat`          结束持续对话
 - `/clear chat_history` 清除对话记录
-- `/ban_chat group <groupID>`||`/ban_chat user <userID>` 封禁用户或群聊
+- `/ban_chat group <groupID>`||`/ban_chat user <userID>`||`/ban_chat word <message>` 添加违禁词 或 封禁用户、群聊
+- `/ban_remove group <groupID>`||`/ban_remove user <userID>`||`/ban_remove word <message>` 删除违禁词 或 解封用户、群聊
 - `聊天菜单`            显示菜单
 
 注意：使用持续会话时会拒绝该用户除结束指令外的所有指令请求
