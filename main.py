@@ -12,7 +12,7 @@ ban_manager = BanManager(os.path.dirname(__file__))  # 创建 BanManager 实例
 
 class ModelChat(BasePlugin):
     name = "ModelChat"
-    version = "1.6.0"
+    version = "1.7.0"
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -63,8 +63,15 @@ class ModelChat(BasePlugin):
                 "name": "Ban Manager",
                 "prefix": "/ban_chat",
                 "handler": self.ban_manager,
-                "description": "禁止群组/人 使用该插件",
-                "examples": ["/ban_chat group <groupID>","/ban_chat user <userID>"]
+                "description": "添加违禁词 或 禁止群组/人使用该插件",
+                "examples": ["/ban_chat word <message>","/ban_chat group <groupID>","/ban_chat user <userID>"]
+            },
+            {
+                "name": "Unban Manager",
+                "prefix": "/ban_remove",
+                "handler": self.unban_manager,
+                "description": "移除违禁词 或 解除群组/人的禁用",
+                "examples": ["/ban_remove word <message>","/ban_remove group <groupID>","/ban_remove user <userID>"]
             },
             {
                 "name": "Chat Menu",
@@ -98,10 +105,12 @@ class ModelChat(BasePlugin):
             
             # 检查是否被ban或包含违禁词
             if await chat_utils.check_ban_and_blocked_words(msg, chat_model_instance, user_input):
+                print("被 ban 或存在违禁词，被移出持续对话模式")
                 # 从活动对话中移除被ban的用户
                 self.active_chats.discard(msg.user_id)
                 return
 
+            print("正在向LLM发送聊天请求[持续模式]")
             # 处理图像输入
             processed_input = await chat_utils.process_image_input(msg, chat_model_instance, user_input)
             if processed_input is None:  # 图片包含违禁词
@@ -165,12 +174,13 @@ class ModelChat(BasePlugin):
 
         text = msg.raw_message.strip()
         user_input = text[3:].strip() if text.startswith('/chat') else text[5:].strip()
-        print("正在向LLM发送聊天请求")
 
         # 检查是否被ban或包含违禁词
         if await chat_utils.check_ban_and_blocked_words(msg, chat_model_instance, user_input):
+            print("被 ban 或存在违禁词，拒绝发送请求")
             return
 
+        print("正在向LLM发送聊天请求")
         # 处理图像输入
         processed_input = await chat_utils.process_image_input(msg, chat_model_instance, user_input)
         if processed_input is None:  # 图片包含违禁词
@@ -193,17 +203,32 @@ class ModelChat(BasePlugin):
 
     async def ban_manager(self, msg: GroupMessage):
         """管理ban列表的指令"""
+        await self._handle_ban_unban_command(msg, is_ban=True)
+
+    async def unban_manager(self, msg: GroupMessage):
+        """管理unban列表的指令"""
+        await self._handle_ban_unban_command(msg, is_ban=False)
+
+    async def _handle_ban_unban_command(self, msg: GroupMessage, is_ban=True):
+        """处理ban/unban命令的通用函数"""
         # 检查是否处于持续对话模式中
         if msg.user_id in self.active_chats:
             print(f"收到用户 {msg.user_id} 的消息，但处于持续对话模式中，拒绝调用该功能。")
             return
 
         # 使用ban_manager处理命令
-        reply_text, should_return = ban_manager.handle_ban_command(
-            msg, 
-            self.chat_model.get('admins', []), 
-            chat_model_instance
-        )
+        if is_ban:
+            reply_text, should_return = ban_manager.handle_ban_command(
+                msg, 
+                self.chat_model.get('admins', []), 
+                chat_model_instance
+            )
+        else:
+            reply_text, should_return = ban_manager.handle_unban_command(
+                msg, 
+                self.chat_model.get('admins', []), 
+                chat_model_instance
+            )
         
         # 如果需要提前返回（如被ban或无权限）
         if should_return:
