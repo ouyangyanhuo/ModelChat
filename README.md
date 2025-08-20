@@ -2,7 +2,7 @@
 ## 简介
 基于 Ncatbot 的大模型对话插件，可以进行持续对话，支持本地大模型加载、远程大模型调用，拥有图像识别功能，同时为大模型添加了短期记忆功能，针对每个 QQ 号拥有记忆能力。
 
-- 本地模型使用 [ollama](https://ollama.com/)
+- 支持调用所有 OpenAI 接口的通用本地模型，如 [ollama](https://ollama.com/)
 - 远程模型支持所有 OpenAI 接口兼容的模型，包含 ChatGPT、Moonshot、Qwen、Deepseek 等
 - 图像识别大模型需要调用支持图像识别的模型，可以分开调用 图像识别 和 文本对话 的API
 
@@ -33,7 +33,7 @@ pip install -r requirements.txt
 
 - 模型的记忆文件位于插件目录 `/cache/history.json`，没有该文件会自动生成
 
-- 用户若要使用本地大模型，请先安装 Ollama 运行环境
+- 用户若要使用本地大模型，请先确保本地模型系统的配置正确
 
 - 介于本地大模型能力，暂不支持本地大模型的图像识别
 
@@ -58,6 +58,8 @@ ModelChat/
 [Magneto](https://fmcf.cc)
 
 ## 更新日志
+- 1.8.0
+  - 简化模型配置，删除 Ollama 依赖，改为使用通用 OpenAI 接口
 - 1.7.0
   - 修复 无法即时重载 Ban List 的 Bug
   - 新增 指令添加违禁词

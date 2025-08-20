@@ -1,5 +1,4 @@
 from openai import OpenAI
-from ollama import chat, ChatResponse
 from ncatbot.core import GroupMessage, BaseMessage
 from .ban import BanManager
 import json, yaml, os, requests, base64
@@ -35,7 +34,7 @@ class ChatUtils:
                     image_url = segment.get("data", {}).get("url")
                     break
 
-        # 如果是图像消息且开启了图像识别功能且不是本地模型，进行图像识别
+        # 如果是图像消息且开启了图像识别功能，进行图像识别
         if image_url and chat_model_instance.config.get('enable_vision', True):
             # 使用图像识别功能
             image_description = await chat_model_instance.recognize_image(image_url)
@@ -54,11 +53,7 @@ class ChatUtils:
     async def generate_response(self, msg: BaseMessage, chat_model_instance, user_input: str):
         """生成模型回复"""
         try:
-            # 根据配置决定使用本地模型还是云端模型
-            if chat_model_instance.config['use_local_model']:
-                reply = await chat_model_instance.useLocalModel(msg, user_input)
-            else:
-                reply = await chat_model_instance.useCloudModel(msg, user_input)
+            reply = await chat_model_instance.useModel(msg, user_input)
 
         except Exception as e:
             reply = f"{str(e)}"
@@ -115,10 +110,7 @@ class ChatModel:
     def _clean_reply(self, text):
         """清理回复中的Markdown格式符号"""
         # 从配置文件中获取需要清理的符号
-        cleanup_chars = self.config.get('cleanup_chars', [
-            "**",  # 粗体符号
-            "#"    # 标题符号
-        ])
+        cleanup_chars = self.config.get('cleanup_chars')
         
         for char in cleanup_chars:
             text = text.replace(char, "")
@@ -274,8 +266,8 @@ class ChatModel:
                     raise Exception("模型API认证失败，请检查配置文件")
                 raise Exception(f"图像识别出错: {str(e)}, 备用方法也失败: {str(fallback_error)}")
 
-    async def useCloudModel(self, msg: GroupMessage, user_input: str):
-        """使用云端模型处理消息，具有记忆能力"""
+    async def useModel(self, msg: GroupMessage, user_input: str):
+        """使用模型处理消息，具有记忆能力"""
         try:
             # 构建消息列表，包含历史记录
             messages = self._build_messages(user_input, msg.user_id if hasattr(msg, 'user_id') else None)
@@ -297,24 +289,6 @@ class ChatModel:
                 reply = "模型API认证失败，请检查配置文件"
             else:
                 reply = f"请求出错了：{str(e)}"
-        return reply
-
-    async def useLocalModel(self, msg: GroupMessage, user_input: str):
-        """使用本地模型处理消息"""
-        try:
-            # 构建消息列表，包含历史记录
-            messages = self._build_messages(user_input, msg.user_id if hasattr(msg, 'user_id') else None)
-            response: ChatResponse = chat(
-                model=self.config['model'],
-                messages=messages
-            )
-            reply = self._clean_reply(response.message.content.strip())
-
-            # 保存当前对话到历史记录
-            self._save_conversation_to_history(msg, user_input, reply)
-            
-        except Exception as e:
-            reply = f"请求出错了：{str(e)}"
         return reply
 
     async def clear_user_history(self, user_id: str):

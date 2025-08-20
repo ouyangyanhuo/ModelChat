@@ -1,5 +1,6 @@
 # 若模型拥有图像识别能力，则 聊天API 和 图像API 可以相同
 # 聊天 API
+# 若为本地模型（以 Ollama 为例），将 base_url 设置为本地地址（例如 http://127.0.0.1:11434/v1），api_key 设置为 "None"
 api_key: "sk-xxxxxxx"
 base_url: "https://api.moonshot.cn/v1"
 # 选择对话模型
