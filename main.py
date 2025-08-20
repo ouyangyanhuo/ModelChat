@@ -12,7 +12,7 @@ ban_manager = BanManager(os.path.dirname(__file__))  # 创建 BanManager 实例
 
 class ModelChat(BasePlugin):
     name = "ModelChat"
-    version = "1.8.0"
+    version = "1.8.1"
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
