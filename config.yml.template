@@ -25,6 +25,10 @@ model_temperature: 0.6
 # 是否开启持续会话系统
 enable_continuous_session: true
 
+# 是否启用 MCP 系统
+# 启用后本地模型兼容性较差，需要配置 mcp_config.json 文件
+enable_mcp: false
+
 # 模型提示词
 system_prompt: "你是一个聊天助手"
 

@@ -1,5 +1,8 @@
 openai>=1.98.1
 requests>=2.32.4
-langchain
-langchain-openai
-langchain-community
+langgraph>=0.6.6
+langchain>=0.3.27
+langchain-core>=0.3.74
+langchain-mcp>=0.2.1
+langchain-openai>=0.3.30
+langchain-community>=0.3.27

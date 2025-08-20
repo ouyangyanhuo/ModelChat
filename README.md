@@ -1,11 +1,12 @@
 # 模型对话插件
 ## 简介
-基于 Ncatbot 的大模型对话插件，可以进行持续对话，支持本地大模型加载、远程大模型调用，拥有图像识别功能，同时为大模型添加了短期记忆功能，针对每个 QQ 号拥有记忆能力。
+基于 Ncatbot + Langchain 的大模型对话插件，支持MCP服务器，可以进行持续对话，支持本地大模型加载、远程大模型调用，拥有图像识别功能，同时为大模型添加了短期记忆功能，针对每个 QQ 号拥有记忆能力。
 
-- 支持调用所有 OpenAI 接口的通用本地模型，如 [ollama](https://ollama.com/)
-- 远程模型支持所有 OpenAI 接口兼容的模型，包含 ChatGPT、Moonshot、Qwen、Deepseek 等
+- 支持所有 OpenAI 接口的通用**本地模型**，如 [ollama](https://ollama.com/)
+- 支持所有 OpenAI 接口兼容的**远程模型**，包含 ChatGPT、Moonshot、Qwen、Deepseek 等
 - 图像识别大模型需要调用支持图像识别的模型，可以分开调用 图像识别 和 文本对话 的API
-
+- 支持标准化 MCP 服务器，如 [12306-mcp
+](https://www.modelscope.cn/mcp/servers/@Joooook/12306-mcp)，但建议不要过多使用，使用 MCP 功能会多次调用 API，TOKENS 消耗速度略快
 ## 开始使用
 指令：
 - `/chat [对话内容]`     对话
@@ -27,7 +28,8 @@ pip install -r requirements.txt
 
 - 配置文件
 
-将 `config.yml.template` 重命名为 `config.yml`，并且修改配置文件
+  - 将 `config.yml.template` 重命名为 `config.yml`，并且修改配置文件
+  - 将 `mcp_config.json.template` 重命名为 `mcp_config.json`，并且修改配置文件
 
 ## 注意事项
 
@@ -45,19 +47,24 @@ pip install -r requirements.txt
 ```
 ModelChat/
 ├── cache/
-│   └── history.json
-├── __init__.py
-├── ban.py
-├── chat.py
-├── main.py
-├── config.yml
-└── banlist.json
+│   └── history.json    -- 聊天记录
+├── __init__.py         -- 插件入口
+├── ban.py              -- 违禁词管理系统
+├── chat.py             -- 聊天核心
+├── main.py             -- 插件主程序
+├── config.yml          -- 配置文件
+└── banlist.json        -- 违禁词列表
+├── mcp_config.json     -- MCP 配置文件
 ```
 
 ## 作者
 [Magneto](https://fmcf.cc)
 
 ## 更新日志
+- 2.0.0
+  - 重构了核心逻辑
+  - 添加 MCP 功能
+  - 使用 Langchain 语义系统优化代码
 - 1.9.0
   - 优化 代码构成
   - 修复 图像历史记录无法被存储的 Bug 
