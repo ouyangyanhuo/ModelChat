@@ -46,6 +46,9 @@ class ChatUtils:
                 await msg.reply(text="图片内容包含违禁词，无法处理。")
                 return None
             
+            # 保存图片描述到历史记录中，标记用户消息为"图片"
+            chat_model_instance._save_conversation_to_history(msg, image_description, image_description, is_image=True)
+            
             # 直接返回视觉模型的回复，不再进行第二次调用
             return image_description
             
@@ -180,10 +183,12 @@ class ChatModel:
         except Exception as e:
             print(f"更新用户历史记录时出错: {e}")
 
-    def _save_conversation_to_history(self, msg, user_input, reply):
+    def _save_conversation_to_history(self, msg, user_input, reply, is_image=False):
         """保存对话到历史记录"""
         if hasattr(msg, 'user_id'):
-            self._update_user_history(msg.user_id, {"role": "user", "content": user_input})
+            # 如果是图片消息，将用户输入标记为"图片"
+            user_content = "[用户发送了一张图片]" if is_image else user_input
+            self._update_user_history(msg.user_id, {"role": "user", "content": user_content})
             self._update_user_history(msg.user_id, {"role": "assistant", "content": reply})
 
     def _build_messages(self, user_input: str, user_id: str = None):
@@ -272,7 +277,7 @@ class ChatModel:
             reply = self._clean_reply(response.choices[0].message.content.strip())
             
             # 保存当前对话到历史记录
-            self._save_conversation_to_history(msg, user_input, reply)
+            self._save_conversation_to_history(msg, user_input, reply, is_image=False)
             
         except Exception as e:
             # 检查是否是认证错误
