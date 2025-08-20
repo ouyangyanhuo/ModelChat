@@ -285,7 +285,11 @@ class ChatModelLangchain(BaseChatModel):
                 tools = await self.mcp_client.get_tools()
                 print(f"已加载 {len(tools)} 个 MCP 工具")
             except Exception as e:
-                print(f"MCP 工具加载失败: {e}")
+                error_str = str(e)
+                if "Missing 'transport' key" in error_str:
+                    print("MCP配置错误: 请在mcp_config.json中为每个服务器配置添加'transport'字段。可选值: 'stdio', 'sse', 'websocket', 'streamable_http'")
+                else:
+                    print(f"MCP 工具加载失败: {e}")
 
         # 若模型不支持 tools，就不要 bind_tools
         model_with_tools = self.client
