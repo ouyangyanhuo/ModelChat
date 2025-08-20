@@ -1,2 +1,5 @@
 openai>=1.98.1
 requests>=2.32.4
+langchain
+langchain-openai
+langchain-community

@@ -1,11 +1,11 @@
 from ncatbot.plugin import BasePlugin, CompatibleEnrollment
 from ncatbot.core import BaseMessage, GroupMessage
-from .chat import ChatModel, ChatUtils
+from .chat import ChatModel, ChatUtils, ChatModelLangchain
 from .ban import BanManager
 import os,yaml
 
 bot = CompatibleEnrollment  # 兼容注册器
-chat_model_instance = ChatModel(os.path.join(os.path.dirname(__file__), 'config.yml'))  # 创建 ChatModel 实例
+chat_model_instance = ChatModelLangchain(os.path.join(os.path.dirname(__file__), 'config.yml'))  # 使用新的Langchain实现
 chat_utils = ChatUtils(os.path.join(os.path.dirname(__file__), 'config.yml'))  # 创建 ChatUtils 实例
 ban_manager = BanManager(os.path.dirname(__file__))  # 创建 BanManager 实例
 

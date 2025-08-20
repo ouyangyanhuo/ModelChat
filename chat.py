@@ -3,12 +3,318 @@ from ncatbot.core import GroupMessage, BaseMessage
 from .ban import BanManager
 import json, yaml, os, requests, base64
 
+from langchain_openai import ChatOpenAI
+from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_core.runnables.history import RunnableWithMessageHistory
+from langchain_community.chat_message_histories import ChatMessageHistory
+from langchain_mcp_adapters.client import MultiServerMCPClient
+from langgraph.graph import StateGraph, MessagesState, START, END
+from langgraph.prebuilt import ToolNode
+
+
+class ChatModelLangchain:
+    def __init__(self, config_path):
+        """使用Langchain初始化参数"""
+        with open(config_path, "r", encoding="utf-8") as f:
+            self.config = yaml.safe_load(f)
+
+        # 初始化 Langchain ChatOpenAI 客户端
+        self.client = ChatOpenAI(
+            model_name=self.config["model"],  # ✅ 修复 model 参数
+            temperature=self.config.get("model_temperature", 0.6),
+            openai_api_key=self.config["api_key"],
+            openai_api_base=self.config["base_url"],
+        )
+
+        # 初始化视觉模型客户端
+        self.vision_client = ChatOpenAI(
+            model_name=self.config.get("vision_model"),
+            openai_api_key=self.config.get("vision_api_key", self.config["api_key"]),
+            openai_api_base=self.config.get("vision_base_url"),
+        )
+
+        # ✅ MCP 客户端（从 mcp_config.json 读取）
+        self.mcp_client = None
+        self.mcp_tools = []
+        self.graph = None
+
+        mcp_config_file = os.path.join(os.path.dirname(config_path), "mcp_config.json")
+        if os.path.exists(mcp_config_file):
+            try:
+                with open(mcp_config_file, "r", encoding="utf-8") as f:
+                    mcp_config = json.load(f).get("mcpServers", {})
+                if mcp_config:
+                    self.mcp_client = MultiServerMCPClient(mcp_config)
+            except Exception as e:
+                print(f"加载 MCP 配置失败: {e}")
+
+        # 历史记录存储
+        self.history_file = os.path.abspath(
+            os.path.join(os.path.dirname(config_path), "./cache/history.json")
+        ).replace("\\", "/")
+        self.history = self._load_history()
+
+        # 违禁词
+        self.blocklist_file = os.path.abspath(
+            os.path.join(os.path.dirname(config_path), "blocklist.json")
+        )
+        self.blocklist = self._load_blocklist()
+
+        # 内存
+        self.user_histories = {}
+
+    async def _init_graph(self):
+        """初始化 LangGraph + MCP 工具"""
+        if self.graph:
+            return self.graph
+
+        tools = []
+        if self.mcp_client:
+            try:
+                tools = await self.mcp_client.get_tools()
+                print(f"已加载 {len(tools)} 个 MCP 工具")
+            except Exception as e:
+                print(f"MCP 工具加载失败: {e}")
+
+        # ✅ 如果模型不支持 tools，就不要 bind_tools
+        model_with_tools = self.client
+        tool_node = None
+        if tools:
+            try:
+                # 尝试绑定，如果失败就退回原始模型
+                model_with_tools = self.client.bind_tools(tools)
+                tool_node = ToolNode(tools)
+            except Exception as e:
+                print(f"模型不支持 tools，使用原始模型: {e}")
+                model_with_tools = self.client
+                tool_node = ToolNode(tools)
+
+        from langchain_core.messages import HumanMessage
+
+        async def call_model(state: MessagesState):
+            messages = state["messages"]
+            response = await model_with_tools.ainvoke(messages)
+            return {"messages": [response]}
+
+        def should_continue(state: MessagesState):
+            last_message = state["messages"][-1]
+            if getattr(last_message, "tool_calls", None):
+                return "tools"
+            return END
+
+        builder = StateGraph(MessagesState)
+        builder.add_node("call_model", call_model)
+        if tool_node:
+            builder.add_node("tools", tool_node)
+
+        builder.add_edge(START, "call_model")
+        builder.add_conditional_edges("call_model", should_continue)
+        if tool_node:
+            builder.add_edge("tools", "call_model")
+
+        self.graph = builder.compile()
+        return self.graph
+
+    def _load_blocklist(self):
+        """加载违禁词列表"""
+        try:
+            if os.path.exists(self.blocklist_file):
+                with open(self.blocklist_file, 'r', encoding='utf-8') as f:
+                    blocklist_data = json.load(f)
+                    # 确保返回的是列表
+                    if isinstance(blocklist_data, list):
+                        return blocklist_data
+        except Exception as e:
+            print(f"加载违禁词列表出错: {e}")
+        return []
+
+    def _check_blocked_words(self, text):
+        """检查文本是否包含违禁词"""
+        for block_word in self.blocklist:
+            if block_word in text:
+                return True
+        return False
+
+    def _clean_reply(self, text):
+        """清理回复中的Markdown格式符号"""
+        # 从配置文件中获取需要清理的符号
+        cleanup_chars = self.config.get('cleanup_chars')
+
+        for char in cleanup_chars:
+            text = text.replace(char, "")
+
+        return text
+
+    def _load_history(self):
+        """加载历史记录"""
+        try:
+            if os.path.exists(self.history_file):
+                with open(self.history_file, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+        except Exception as e:
+            print(f"FUCKING ERROR 加载历史记录出错: {e}")
+        return {}
+
+    def _save_history(self):
+        """保存历史记录"""
+        try:
+            # 确保目录存在
+            history_dir = os.path.dirname(self.history_file)
+            if not os.path.exists(history_dir):
+                os.makedirs(history_dir)
+
+            # 确保文件存在
+            if not os.path.exists(self.history_file):
+                with open(self.history_file, 'w', encoding='utf-8') as f:
+                    json.dump({}, f, ensure_ascii=False, indent=2)
+
+            with open(self.history_file, 'w', encoding='utf-8') as f:
+                json.dump(self.history, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            print(f"FUCKING ERROR 保存历史记录出错: {e}")
+
+    def _get_user_history(self, user_id):
+        """获取用户的历史记录"""
+        return self.history.get(str(user_id), [])
+
+    def _update_user_history(self, user_id, message):
+        """更新用户的历史记录"""
+        try:
+            # 确保用户历史记录存在
+            user_id = str(user_id)
+            if user_id not in self.history:
+                self.history[user_id] = []
+
+            self.history[user_id].append(message)
+            # 保持历史记录长度在设定范围内，默认为 10 条
+            max_length = self.config.get('memory_length', 10)
+            if len(self.history[user_id]) > max_length:
+                self.history[user_id] = self.history[user_id][-max_length:]
+
+            # 异步保存历史记录，避免阻塞主流程
+            self._save_history()
+        except Exception as e:
+            print(f"更新用户历史记录时出错: {e}")
+
+    def _save_conversation_to_history(self, msg, user_input, reply, is_image=False):
+        """保存对话到历史记录"""
+        if hasattr(msg, 'user_id'):
+            # 如果是图片消息，将用户输入标记为"图片"
+            user_content = "[用户发送了一张图片]" if is_image else user_input
+            self._update_user_history(msg.user_id, {"role": "user", "content": user_content})
+            self._update_user_history(msg.user_id, {"role": "assistant", "content": reply})
+
+    def get_session_history(self, user_id: str):
+        """获取或创建指定用户的对话历史"""
+        if user_id not in self.user_histories:
+            # 从持久化存储中加载历史记录
+            history_data = self._get_user_history(user_id)
+            history = ChatMessageHistory()
+
+            # 将历史记录转换为Langchain格式
+            for message in history_data:
+                if message["role"] == "user":
+                    history.add_user_message(message["content"])
+                elif message["role"] == "assistant":
+                    history.add_ai_message(message["content"])
+                elif message["role"] == "system":
+                    # 系统消息通常在提示中处理，这里忽略
+                    pass
+
+            self.user_histories[user_id] = history
+        return self.user_histories[user_id]
+
+    def _build_vision_messages(self, image_data: str, prompt: str = "请描述这张图片"):
+        """构建图像识别消息列表"""
+        return [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:image/jpeg;base64,{image_data}"
+                        }
+                    },
+                    {
+                        "type": "text",
+                        "text": prompt
+                    }
+                ]
+            }
+        ]
+
+    def _encode_image_from_url(self, image_url: str) -> str:
+        """从URL获取图片并编码为base64"""
+        try:
+            response = requests.get(image_url)
+            response.raise_for_status()
+            return base64.b64encode(response.content).decode('utf-8')
+        except Exception as e:
+            raise Exception(f"获取或编码图片失败: {str(e)}")
+
+    async def recognize_image_with_prompt(self, image_url: str, prompt: str = "请描述这张图片"):
+        """使用视觉模型识别图片并结合用户问题"""
+        try:
+            # 获取并编码图片
+            image_data = self._encode_image_from_url(image_url)
+
+            # 构建包含图片和用户问题的消息
+            messages = self._build_vision_messages(image_data, prompt)
+
+            # 调用视觉模型
+            response = self.vision_client.invoke(messages)
+
+            reply = self._clean_reply(response.content)
+            return reply
+        except Exception as e:
+            # 检查是否是认证错误
+            if "401" in str(e) or "Unauthorized" in str(e):
+                raise Exception("模型API认证失败，请检查配置文件")
+            raise Exception(f"图像识别出错: {str(e)}")
+
+    async def useModel(self, msg: GroupMessage, user_input: str):
+        """使用 LangChain + MCP 处理消息"""
+        try:
+            graph = await self._init_graph()
+
+            from langchain_core.messages import HumanMessage
+
+            # ✅ 关键修改：传 LangChain 消息对象，而不是 dict
+            response = await graph.ainvoke(
+                {"messages": [HumanMessage(content=user_input)]}
+            )
+
+            # response["messages"] 是 LangChain 消息对象
+            reply = response["messages"][-1].content
+            self._save_conversation_to_history(msg, user_input, reply)
+
+        except Exception as e:
+            if "401" in str(e) or "Unauthorized" in str(e):
+                reply = "模型API认证失败，请检查配置文件"
+            else:
+                reply = f"请求出错了：{str(e)}"
+        return reply
+
+
+
+    async def clear_user_history(self, user_id: str):
+        """清除指定用户的历史记录"""
+        user_id = str(user_id)
+        if user_id in self.history:
+            del self.history[user_id]
+            self._save_history()
+            reply = "已清空聊天记录"
+        else:
+            reply = "没有找到用户的聊天记录"
+        return reply
+
 
 class ChatUtils:
     def __init__(self, config_path):
         """初始化工具类"""
         self.config_path = config_path
-        # 不直接创建chat_model_instance，而是在使用时传入实例
         self.ban_manager = BanManager(os.path.dirname(config_path))
 
     async def check_ban_and_blocked_words(self, msg: BaseMessage, chat_model_instance, user_input: str = ""):
@@ -59,21 +365,22 @@ class ChatUtils:
         return user_input
 
     async def generate_response(self, msg: BaseMessage, chat_model_instance, user_input: str):
-        """生成模型回复"""
+        """生成模型或 MCP 回复"""
         try:
-            # 如果user_input已经是视觉模型的回复，则直接返回
+            # 如果是图片，直接返回视觉模型的结果
             if hasattr(msg, 'message') and isinstance(msg.message, list):
                 for segment in msg.message:
                     if isinstance(segment, dict) and segment.get("type") == "image":
                         return user_input
-            
-            # 否则使用普通模型处理
+
+            # 普通文本输入 → 先尝试 MCP 工具，否则走大模型
             reply = await chat_model_instance.useModel(msg, user_input)
 
         except Exception as e:
             reply = f"{str(e)}"
 
         return reply
+
 
 
 class ChatModel:
