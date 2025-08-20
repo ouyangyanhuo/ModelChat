@@ -36,14 +36,19 @@ class ChatUtils:
 
         # 如果是图像消息且开启了图像识别功能，进行图像识别
         if image_url and chat_model_instance.config.get('enable_vision', True):
-            # 使用图像识别功能
-            image_description = await chat_model_instance.recognize_image(image_url)
-            user_input = f"用户发送了一张图片，图片描述是：{image_description}。注意，现在你已经看到图片了，不能回答用户说你没看到图片。用户说：{user_input}。"
-
+            # 使用图像识别功能，直接调用视觉模型处理图片和用户问题
+            # 如果用户没有发送问题，则默认对图片进行描述
+            vision_prompt = user_input if user_input else "请描述这张图片"
+            image_description = await chat_model_instance.recognize_image_with_prompt(image_url, vision_prompt)
+            
             # 检查图片描述是否包含违禁词
             if self.ban_manager.check_blocked_words(image_description):
                 await msg.reply(text="图片内容包含违禁词，无法处理。")
                 return None
+            
+            # 直接返回视觉模型的回复，不再进行第二次调用
+            return image_description
+            
         elif image_url and not chat_model_instance.config.get('enable_vision', True):
             # 图像识别功能未开启
             user_input = f"用户发送了一张图片，但图像识别功能未开启。用户说：{user_input}"
@@ -53,6 +58,13 @@ class ChatUtils:
     async def generate_response(self, msg: BaseMessage, chat_model_instance, user_input: str):
         """生成模型回复"""
         try:
+            # 如果user_input已经是视觉模型的回复，则直接返回
+            if hasattr(msg, 'message') and isinstance(msg.message, list):
+                for segment in msg.message:
+                    if isinstance(segment, dict) and segment.get("type") == "image":
+                        return user_input
+            
+            # 否则使用普通模型处理
             reply = await chat_model_instance.useModel(msg, user_input)
 
         except Exception as e:
@@ -219,13 +231,13 @@ class ChatModel:
         except Exception as e:
             raise Exception(f"获取或编码图片失败: {str(e)}")
 
-    async def recognize_image(self, image_url: str, prompt: str = "请描述这张图片"):
-        """使用云端视觉模型识别图片"""
+    async def recognize_image_with_prompt(self, image_url: str, prompt: str = "请描述这张图片"):
+        """使用视觉模型识别图片并结合用户问题"""
         try:
             # 获取并编码图片
             image_data = self._encode_image_from_url(image_url)
             
-            # 构建消息
+            # 构建包含图片和用户问题的消息
             messages = self._build_vision_messages(image_data, prompt)
             
             # 调用视觉模型
@@ -243,28 +255,7 @@ class ChatModel:
             # 检查是否是认证错误
             if "401" in str(e) or "Unauthorized" in str(e):
                 raise Exception("模型API认证失败，请检查配置文件")
-            # 如果图像识别失败，尝试使用备用方法
-            try:
-                # 使用简化格式
-                messages = [
-                    {
-                        "role": "user",
-                        "content": f"{prompt}"
-                    }
-                ]
-                
-                response = self.vision_client.chat.completions.create(
-                    model=self.config.get('vision_model'),
-                    messages=messages,
-                )
-                
-                reply = self._clean_reply(f"图片识别功能暂时不可用，但用户发送了图片。{response.choices[0].message.content.strip()}")
-                return reply
-            except Exception as fallback_error:
-                # 检查备用方法是否也是认证错误
-                if "401" in str(fallback_error) or "Unauthorized" in str(fallback_error):
-                    raise Exception("模型API认证失败，请检查配置文件")
-                raise Exception(f"图像识别出错: {str(e)}, 备用方法也失败: {str(fallback_error)}")
+            raise Exception(f"图像识别出错: {str(e)}")
 
     async def useModel(self, msg: GroupMessage, user_input: str):
         """使用模型处理消息，具有记忆能力"""

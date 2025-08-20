@@ -58,6 +58,8 @@ ModelChat/
 [Magneto](https://fmcf.cc)
 
 ## 更新日志
+- 1.8.1
+  - 优化了视觉模型处理流程
 - 1.8.0
   - 简化模型配置，删除 Ollama 依赖，改为使用通用 OpenAI 接口
 - 1.7.0
