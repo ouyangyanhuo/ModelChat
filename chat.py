@@ -1,13 +1,12 @@
 from openai import OpenAI
 from ncatbot.core import GroupMessage, BaseMessage
-from .ban import BanManager
-import json, yaml, os, requests, base64
-
 from langchain_openai import ChatOpenAI
+from langchain_core.messages import HumanMessage,SystemMessage, AIMessage
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from langgraph.graph import StateGraph, MessagesState, START, END
 from langgraph.prebuilt import ToolNode
-
+from .ban import BanManager
+import json, yaml, os, requests, base64,re
 
 class ChatUtils:
     def __init__(self, config_path):
@@ -121,7 +120,13 @@ class BaseChatModel:
         for char in cleanup_chars:
             text = text.replace(char, "")
         
-        return text
+        # 移除think标签及其内容（深度思考内容）
+        text = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL)
+        
+        # 清理多余的空白行
+        text = re.sub(r'\n\s*\n', '\n', text)
+        
+        return text.strip()
 
     def _load_history(self):
         """加载历史记录"""
@@ -295,10 +300,13 @@ class ChatModelLangchain(BaseChatModel):
                 model_with_tools = self.client
                 tool_node = ToolNode(tools)
 
-        from langchain_core.messages import HumanMessage
-
         async def call_model(state: MessagesState):
             messages = state["messages"]
+            # 在消息列表开头添加系统提示词
+            system_prompt = self.config.get('system_prompt')
+            if not any(isinstance(msg, SystemMessage) for msg in messages):
+                messages = [SystemMessage(content=system_prompt)] + messages
+            
             response = await model_with_tools.ainvoke(messages)
             return {"messages": [response]}
 
@@ -356,14 +364,29 @@ class ChatModelLangchain(BaseChatModel):
         try:
             graph = await self._init_graph()
 
-            from langchain_core.messages import HumanMessage
 
-            # 传入 LangChain 消息对象
+            # 构建包含历史记录的消息
+            messages = []
+            
+            # 添加历史记录
+            if hasattr(msg, 'user_id'):
+                history = self._get_user_history(msg.user_id)
+                for item in history:
+                    if item["role"] == "user":
+                        messages.append(HumanMessage(content=item["content"]))
+                    elif item["role"] == "assistant":
+                        messages.append(AIMessage(content=item["content"]))
+                    # system message 会在 call_model 中添加
+
+            # 添加当前用户输入
+            messages.append(HumanMessage(content=user_input))
+
+            # 传入包含历史记录的 LangChain 消息对象
             response = await graph.ainvoke(
-                {"messages": [HumanMessage(content=user_input)]}
+                {"messages": messages}
             )
 
-            reply = response["messages"][-1].content
+            reply = self._clean_reply(response["messages"][-1].content)
             self._save_conversation_to_history(msg, user_input, reply)
 
         except Exception as e:
