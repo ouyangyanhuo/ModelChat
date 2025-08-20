@@ -5,8 +5,21 @@ from .ban import BanManager
 import os,yaml
 
 bot = CompatibleEnrollment  # 兼容注册器
-chat_model_instance = ChatModelLangchain(os.path.join(os.path.dirname(__file__), 'config.yml'))  # 使用新的Langchain实现
-chat_utils = ChatUtils(os.path.join(os.path.dirname(__file__), 'config.yml'))  # 创建 ChatUtils 实例
+
+# 根据配置决定使用哪个模型类
+config_path = os.path.join(os.path.dirname(__file__), 'config.yml')
+with open(config_path, 'r', encoding='utf-8') as f:
+    config = yaml.safe_load(f)
+
+# 检查是否启用MCP系统
+if config.get('enable_mcp', True):
+    chat_model_instance = ChatModelLangchain(config_path)  # 使用Langchain实现
+    print("MCP 已启用")
+else:
+    chat_model_instance = ChatModel(config_path)  # 使用原始实现（兼容性更好）
+    print("MCP 已禁用")
+
+chat_utils = ChatUtils(config_path)  # 创建 ChatUtils 实例
 ban_manager = BanManager(os.path.dirname(__file__))  # 创建 BanManager 实例
 
 
