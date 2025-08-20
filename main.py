@@ -160,6 +160,7 @@ class ModelChat(BasePlugin):
         # 从活动对话集合中移除用户
         if msg.user_id in self.active_chats:
             self.active_chats.discard(msg.user_id)
+            print(f"[User {msg.user_id} 已结束持续模式]")
             reply = "已退出持续对话模式，对话历史已保存。"
         else:
             reply = "您当前未处于持续对话模式中。输入 /chat 开始对话。"
