@@ -143,7 +143,7 @@ class BanManager:
         parts = text.split()
 
         operation = "添加" if is_ban else "移除"
-        command = "/ban_chat" if is_ban else "/ban_remove"
+        command = "#ban_chat" if is_ban else "#ban_remove"
         reverse_status_word = "不在" if is_ban else "已"
 
         if len(parts) < 3:

@@ -4,7 +4,7 @@ from .chat import ChatModel, ChatUtils, ChatModelLangchain
 from .ban import BanManager
 import os,yaml
 
-bot = CompatibleEnrollment  # 兼容注册器
+bot = CompatibleEnrollment  # 兼容回调函数注册器
 
 # 根据配置决定使用哪个模型类
 config_path = os.path.join(os.path.dirname(__file__), 'config.yml')
@@ -46,45 +46,45 @@ class ModelChat(BasePlugin):
         self.commands = [
             {
                 "name": "Start Chat",
-                "prefix": "/start_chat",
+                "prefix": "#start_chat",
                 "handler": self.start_chat,
                 "description": "开始持续对话模式",
-                "examples": ["/start_chat"]
+                "examples": ["#start_chat"]
             },
             {
                 "name": "End Chat",
-                "prefix": "/stop_chat",
+                "prefix": "#stop_chat",
                 "handler": self.stop_chat,
                 "description": "结束持续对话模式",
-                "examples": ["/stop_chat"]
+                "examples": ["#stop_chat"]
             },
             {
                 "name": "ModelChat",
-                "prefix": "/chat",
+                "prefix": "#chat",
                 "handler": self.chat,
                 "description": "单次聊天功能",
-                "examples": ["/chat <message>","/chat <photo>","/chat <message>+<photo>"]
+                "examples": ["#chat <message>","#chat <photo>","#chat <message>+<photo>"]
             },
             {
                 "name": "Clear History",
-                "prefix": "/clear chat_history",
+                "prefix": "#clear chat_history",
                 "handler": self.chat_history,
                 "description": "清除聊天记忆",
-                "examples": ["/clear chat_history"]
+                "examples": ["#clear chat_history"]
             },
             {
                 "name": "Ban Manager",
-                "prefix": "/ban_chat",
-                "handler": self.ban_manager,
+                "prefix": "#ban_chat",
+                        "handler": self.ban_manager,
                 "description": "添加违禁词 或 禁止群组/人使用该插件",
-                "examples": ["/ban_chat word <message>","/ban_chat group <groupID>","/ban_chat user <userID>"]
+                "examples": ["#ban_chat word <message>","#ban_chat group <groupID>","#ban_chat user <userID>"]
             },
             {
                 "name": "Unban Manager",
-                "prefix": "/ban_remove",
+                "prefix": "#ban_remove",
                 "handler": self.unban_manager,
                 "description": "移除违禁词 或 解除群组/人的禁用",
-                "examples": ["/ban_remove word <message>","/ban_remove group <groupID>","/ban_remove user <userID>"]
+                "examples": ["#ban_remove word <message>","#ban_remove group <groupID>","#ban_remove user <userID>"]
             },
             {
                 "name": "Chat Menu",
@@ -160,7 +160,7 @@ class ModelChat(BasePlugin):
         if history:
             reply = "已加载之前的对话记录，现在您可以开始对话了！"
         else:
-            reply = "已进入持续对话模式，现在您可以开始对话了！输入 /stop_chat 结束对话。"
+            reply = "已进入持续对话模式，现在您可以开始对话了！输入 #stop_chat 结束对话。"
         
         await msg.reply(text=reply)
 
@@ -176,7 +176,7 @@ class ModelChat(BasePlugin):
             print(f"[User {msg.user_id} 已结束持续模式]")
             reply = "已退出持续对话模式，对话历史已保存。"
         else:
-            reply = "您当前未处于持续对话模式中。输入 /chat 开始对话。"
+            reply = "您当前未处于持续对话模式中。输入 #chat 开始对话。"
             
         await msg.reply(text=reply)
 
@@ -187,7 +187,7 @@ class ModelChat(BasePlugin):
             return
 
         text = msg.raw_message.strip()
-        user_input = text[3:].strip() if text.startswith('/chat') else text[5:].strip()
+        user_input = text[3:].strip() if text.startswith('#chat') else text[5:].strip()
 
         # 检查是否被ban或包含违禁词
         if await chat_utils.check_ban_and_blocked_words(msg, chat_model_instance, user_input):
