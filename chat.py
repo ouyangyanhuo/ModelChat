@@ -115,7 +115,7 @@ class BaseChatModel:
     def _clean_reply(self, text):
         """清理回复中的Markdown格式符号"""
         # 从配置文件中获取需要清理的符号
-        cleanup_chars = self.config.get('cleanup_chars')
+        cleanup_chars = self.config.get('cleanup_chars', [])
         
         for char in cleanup_chars:
             text = text.replace(char, "")
@@ -143,8 +143,7 @@ class BaseChatModel:
         try:
             # 确保目录存在
             history_dir = os.path.dirname(self.history_file)
-            if not os.path.exists(history_dir):
-                os.makedirs(history_dir)
+            os.makedirs(history_dir, exist_ok=True)
             
             # 确保文件存在
             if not os.path.exists(self.history_file):
