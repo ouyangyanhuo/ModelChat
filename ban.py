@@ -1,8 +1,6 @@
-import json, os
 from ncatbot.core import GroupMessage
 from ncatbot.utils import config
 from .utils import ConfigManager
-
 
 class BanManager:
     def __init__(self, plugin_dir):

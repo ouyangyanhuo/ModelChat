@@ -53,7 +53,7 @@ ModelChat/
 ├── chat.py             -- 聊天核心
 ├── main.py             -- 插件主程序
 ├── config.yml          -- 配置文件
-└── banlist.json        -- 违禁词列表
+└── data.json           -- 插件数据文件
 ├── mcp_config.json     -- MCP 配置文件
 ```
 
@@ -62,6 +62,7 @@ ModelChat/
 
 ## 更新日志
 - 2.1.0
+  - 删减部分冗余代码
   - 重构系统架构
   - 优化 Ban 系统的逻辑
 - 2.0.0

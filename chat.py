@@ -5,7 +5,6 @@ from langchain_core.messages import HumanMessage,SystemMessage, AIMessage
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from langgraph.graph import StateGraph, MessagesState, START, END
 from langgraph.prebuilt import ToolNode
-from .ban import BanManager
 from .utils import ConfigManager
 import json, yaml, os, requests, base64,re
 
@@ -20,30 +19,6 @@ class BaseChatModel:
         # 初始化历史记录存储
         self.history_file = os.path.abspath(os.path.join(plugin_dir, './cache/history.json')).replace("\\", "/")
         self.history = self._load_history()
-        
-        # 初始化违禁词列表
-        self.blocklist_file = os.path.abspath(os.path.join(plugin_dir, 'blocklist.json'))
-        self.blocklist = self._load_blocklist()
-
-    def _load_blocklist(self):
-        """加载违禁词列表"""
-        try:
-            if os.path.exists(self.blocklist_file):
-                with open(self.blocklist_file, 'r', encoding='utf-8') as f:
-                    blocklist_data = json.load(f)
-                    # 确保返回的是列表
-                    if isinstance(blocklist_data, list):
-                        return blocklist_data
-        except Exception as e:
-            print(f"加载违禁词列表出错: {e}")
-        return []
-
-    def _check_blocked_words(self, text):
-        """检查文本是否包含违禁词"""
-        for block_word in self.blocklist:
-            if block_word in text:
-                return True
-        return False
 
     def _clean_reply(self, text):
         """清理回复中的Markdown格式符号"""
