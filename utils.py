@@ -56,6 +56,27 @@ class ConfigManager:
         except Exception as e:
             print(f"保存数据文件出错: {e}")
 
+
+class SystemPromptManager:
+    """系统提示词管理器"""
+    
+    def __init__(self, plugin_dir):
+        self.plugin_dir = plugin_dir
+        self.config_manager = ConfigManager(plugin_dir)
+        
+    def get_system_prompt(self):
+        """获取系统提示词"""
+        data = self.config_manager.load_data()
+        return data.get("system_prompt", "你是一个AI助手")
+        
+    def set_system_prompt(self, prompt):
+        """设置系统提示词"""
+        data = self.config_manager.load_data()
+        data["system_prompt"] = prompt
+        self.config_manager.save_data(data)
+        return True
+
+
 class ChatUtils:
     """聊天工具类"""
     def __init__(self, plugin_dir):
@@ -65,6 +86,7 @@ class ChatUtils:
         self.plugin_dir = plugin_dir
         self.config_manager = ConfigManager(plugin_dir)
         self.ban_manager = BanManager(plugin_dir)
+        self.system_prompt_manager = SystemPromptManager(plugin_dir)
 
     async def check_ban_and_blocked_words(self, msg: BaseMessage, user_input: str = ""):
         """检查是否被ban或包含违禁词"""

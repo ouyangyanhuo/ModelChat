@@ -1,3 +1,4 @@
+import json, os
 from ncatbot.core import GroupMessage
 from ncatbot.utils import config
 from .utils import ConfigManager

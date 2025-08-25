@@ -1,7 +1,7 @@
 from ncatbot.plugin import BasePlugin, CompatibleEnrollment
 from ncatbot.core import BaseMessage, GroupMessage
 from .chat import ChatModel, ChatModelLangchain
-from .utils import ChatUtils
+from .utils import ChatUtils, SystemPromptManager
 from .ban import BanManager
 import os,yaml
 
@@ -31,7 +31,9 @@ class ModelChat(BasePlugin):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        # 用于存储指令
         self.commands = []
+        self.admin_commands = []
         # 用于跟踪处于对话模式中的用户
         self.active_chats = set()
 
@@ -75,6 +77,16 @@ class ModelChat(BasePlugin):
                 "examples": ["#clear chat_history"]
             },
             {
+                "name": "Chat Menu",
+                "prefix": "聊天菜单",
+                "handler": self.chat_menu,
+                "description": "显示聊天插件的使用菜单",
+                "examples": ["聊天菜单"]
+            },
+        ]
+        # 注册管理员命令
+        self.admin_commands = [
+            {
                 "name": "Ban Manager",
                 "prefix": "#ban_chat",
                         "handler": self.ban_manager,
@@ -89,16 +101,23 @@ class ModelChat(BasePlugin):
                 "examples": ["#ban_remove word <message>","#ban_remove group <groupID>","#ban_remove user <userID>"]
             },
             {
-                "name": "Chat Menu",
-                "prefix": "聊天菜单",
-                "handler": self.chat_menu,
-                "description": "显示聊天插件的使用菜单",
-                "examples": ["聊天菜单"]
+                "name": "System Prompt",
+                "prefix": "#system_prompt",
+                "handler": self.system_prompt_handler,
+                "description": "修改系统提示词",
+                "examples": ["#system_prompt <提示词>"]
             }
         ]
-        
         # 实际注册指令
         for cmd in self.commands:
+            self.register_user_func(
+                name=cmd["name"],
+                handler=cmd["handler"],
+                prefix=cmd["prefix"]
+            )
+            
+        # 注册管理员指令
+        for cmd in self.admin_commands:
             self.register_user_func(
                 name=cmd["name"],
                 handler=cmd["handler"],
@@ -216,7 +235,6 @@ class ModelChat(BasePlugin):
 
         reply = await chat_model_instance.clear_user_history(msg.user_id)
         await msg.reply(text=reply)
-
     async def ban_manager(self, msg: GroupMessage):
         """管理ban列表的指令"""
         await self._handle_ban_unban_command(msg, is_ban=True)
@@ -254,6 +272,59 @@ class ModelChat(BasePlugin):
         # 发送回复
         await msg.reply(text=reply_text)
 
+    async def system_prompt_handler(self, msg: GroupMessage):
+        """处理系统提示词修改指令"""
+        # 检查是否处于持续对话模式中
+        if msg.user_id in self.active_chats:
+            print(f"收到用户 {msg.user_id} 的消息，但处于持续对话模式中，拒绝调用该功能。")
+            return
+
+        # 检查是否为超级管理员（参考ban.py的实现方式）
+        from ncatbot.utils import config as bot_config
+        if str(msg.user_id) != bot_config.root:
+            await msg.reply(text="您没有权限执行此操作，仅超级管理员可以修改系统提示词。")
+            return
+
+        # 检查是否被ban
+        if ban_manager.is_banned(msg):
+            await msg.reply(text="您或您所在的群组已被禁止使用此功能。")
+            return
+
+        # 获取新的系统提示词
+        text = msg.raw_message.strip()
+        if text.startswith("#system_prompt"):
+            new_prompt = text[20:].strip()  # 去掉指令部分
+        else:
+            new_prompt = text.strip()
+
+        if not new_prompt:
+            # 如果没有提供新的提示词，则显示当前提示词
+            system_prompt_manager = SystemPromptManager(os.path.dirname(__file__))
+            current_prompt = system_prompt_manager.get_system_prompt()
+            await msg.reply(text=f"当前系统提示词：{current_prompt}")
+            return
+
+        # 更新系统提示词
+        system_prompt_manager = SystemPromptManager(os.path.dirname(__file__))
+        system_prompt_manager.set_system_prompt(new_prompt)
+        await msg.reply(text=f"已更新系统提示词为：{new_prompt}")
+
+    def _format_command_info(self, cmd):
+        """格式化命令信息"""
+        menu_text = f"指令: {cmd.get('prefix', 'N/A')}\n"
+        menu_text += f"描述: {cmd.get('description', '暂无描述')}\n"
+
+        examples = cmd.get('examples', [])
+        if examples:
+            menu_text += "示例:\n"
+            for example in examples:
+                menu_text += f"  - {example}\n"
+        else:
+            menu_text += "示例: 暂无示例\n"
+
+        menu_text += "\n"
+        return menu_text
+
     async def chat_menu(self, msg: BaseMessage):
         """显示聊天菜单"""
         # 检查是否处于持续对话模式中
@@ -265,27 +336,24 @@ class ModelChat(BasePlugin):
         if ban_manager.is_banned(msg):
             await msg.reply(text="您或您所在的群组已被禁止使用此功能。")
             return
-            
+
         menu_text = "=== 大模型聊天 ===\n\n"
-        
-        # 遍历所有指令信息
+
+        # 判断是否为管理员或超级管理员（参考ban.py的实现方式）
+        from ncatbot.utils import config as bot_config
+        is_admin = str(msg.user_id) in self.chat_model.get('admins', []) or str(msg.user_id) == bot_config.root
+
+        # 添加普通命令
         for cmd in self.commands:
             # 跳过菜单本身
             if cmd.get('prefix') == "聊天菜单":
                 continue
-                
-            menu_text += f"指令: {cmd.get('prefix', 'N/A')}\n"
-            menu_text += f"描述: {cmd.get('description', '暂无描述')}\n"
-            
-            examples = cmd.get('examples', [])
-            if examples:
-                menu_text += "示例:\n"
-                for example in examples:
-                    menu_text += f"  - {example}\n"
-            else:
-                menu_text += "示例: 暂无示例\n"
-            
-            menu_text += "\n"
-            
+            menu_text += self._format_command_info(cmd)
+
+        # 如果是管理员或超级管理员，添加管理员命令
+        if is_admin:
+            for cmd in self.admin_commands:
+                menu_text += self._format_command_info(cmd)
+
         menu_text += "========================"
         await msg.reply(text=menu_text)

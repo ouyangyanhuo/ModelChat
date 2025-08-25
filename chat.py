@@ -5,7 +5,7 @@ from langchain_core.messages import HumanMessage,SystemMessage, AIMessage
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from langgraph.graph import StateGraph, MessagesState, START, END
 from langgraph.prebuilt import ToolNode
-from .utils import ConfigManager
+from .utils import ConfigManager,SystemPromptManager
 import json, yaml, os, requests, base64,re
 
 class BaseChatModel:
@@ -15,26 +15,10 @@ class BaseChatModel:
         self.plugin_dir = plugin_dir
         self.config_manager = ConfigManager(plugin_dir)
         self.config = self.config_manager.load_config()
-        
+
         # 初始化历史记录存储
         self.history_file = os.path.abspath(os.path.join(plugin_dir, './cache/history.json')).replace("\\", "/")
         self.history = self._load_history()
-
-    def _clean_reply(self, text):
-        """清理回复中的Markdown格式符号"""
-        # 从配置文件中获取需要清理的符号
-        cleanup_chars = self.config.get('cleanup_chars', [])
-        
-        for char in cleanup_chars:
-            text = text.replace(char, "")
-        
-        # 移除think标签及其内容（深度思考内容）
-        text = re.sub(r'', '', text, flags=re.DOTALL)
-        
-        # 清理多余的空白行
-        text = re.sub(r'\n\s*\n', '\n', text)
-        
-        return text.strip()
 
     def _load_history(self):
         """加载历史记录"""
@@ -52,12 +36,12 @@ class BaseChatModel:
             # 确保目录存在
             history_dir = os.path.dirname(self.history_file)
             os.makedirs(history_dir, exist_ok=True)
-            
+
             # 确保文件存在
             if not os.path.exists(self.history_file):
                 with open(self.history_file, 'w', encoding='utf-8') as f:
                     json.dump({}, f, ensure_ascii=False, indent=2)
-            
+
             with open(self.history_file, 'w', encoding='utf-8') as f:
                 json.dump(self.history, f, ensure_ascii=False, indent=2)
         except Exception as e:
@@ -66,7 +50,7 @@ class BaseChatModel:
     def _get_user_history(self, user_id):
         """获取用户的历史记录"""
         return self.history.get(str(user_id), [])
-    
+
     def _update_user_history(self, user_id, message):
         """更新用户的历史记录"""
         try:
@@ -74,13 +58,13 @@ class BaseChatModel:
             user_id = str(user_id)
             if user_id not in self.history:
                 self.history[user_id] = []
-            
+
             self.history[user_id].append(message)
             # 保持历史记录长度在设定范围内，默认为 10 条
             max_length = self.config.get('memory_length', 10)
             if len(self.history[user_id]) > max_length:
                 self.history[user_id] = self.history[user_id][-max_length:]
-            
+
             # 异步保存历史记录，避免阻塞主流程
             self._save_history()
         except Exception as e:
@@ -216,10 +200,11 @@ class ChatModelLangchain(BaseChatModel):
         async def call_model(state: MessagesState):
             messages = state["messages"]
             # 在消息列表开头添加系统提示词
-            system_prompt = self.config.get('system_prompt')
+            system_prompt_manager = SystemPromptManager(self.plugin_dir)
+            system_prompt = system_prompt_manager.get_system_prompt()
             if not any(isinstance(msg, SystemMessage) for msg in messages):
                 messages = [SystemMessage(content=system_prompt)] + messages
-            
+
             response = await model_with_tools.ainvoke(messages)
             return {"messages": [response]}
 
@@ -280,7 +265,7 @@ class ChatModelLangchain(BaseChatModel):
 
             # 构建包含历史记录的消息
             messages = []
-            
+
             # 添加历史记录
             if hasattr(msg, 'user_id'):
                 history = self._get_user_history(msg.user_id)
@@ -330,7 +315,7 @@ class ChatModel(BaseChatModel):
             api_key=self.config['api_key'],
             base_url=self.config['base_url']
         )
-        
+
         # 初始化视觉模型客户端（用于图像识别）
         self.vision_client = OpenAI(
             api_key=self.config.get('vision_api_key', self.config['api_key']),
@@ -340,15 +325,16 @@ class ChatModel(BaseChatModel):
     def _build_messages(self, user_input: str, user_id: str = None):
         """构建消息列表"""
         messages = []
-        
+
         # 添加系统提示词
-        system_prompt = self.config.get('system_prompt')
+        system_prompt_manager = SystemPromptManager(self.plugin_dir)
+        system_prompt = system_prompt_manager.get_system_prompt()
         messages.append({"role": "system", "content": system_prompt})
 
         if user_id:
             history = self._get_user_history(user_id)
             messages.extend(history)
-        
+
         # 添加当前用户输入
         messages.append({"role": "user", "content": user_input})
         return messages
@@ -358,10 +344,10 @@ class ChatModel(BaseChatModel):
         try:
             # 获取并编码图片
             image_data = self._encode_image_from_url(image_url)
-            
+
             # 构建包含图片和用户问题的消息
             messages = self._build_vision_messages(image_data, prompt)
-            
+
             # 调用视觉模型
             response = self.vision_client.chat.completions.create(
                 model=self.config.get('vision_model'),
@@ -370,7 +356,7 @@ class ChatModel(BaseChatModel):
                 stream=False,
                 max_tokens=2048
             )
-            
+
             reply = self._clean_reply(response.choices[0].message.content.strip())
             return reply
         except Exception as e:
@@ -385,7 +371,7 @@ class ChatModel(BaseChatModel):
         try:
             # 构建消息列表，包含历史记录
             messages = self._build_messages(user_input, msg.user_id if hasattr(msg, 'user_id') else None)
-            
+
             response = self.client.chat.completions.create(
                 model=self.config['model'],
                 messages=messages,
@@ -393,7 +379,7 @@ class ChatModel(BaseChatModel):
                 stream=False
             )
             reply = self._clean_reply(response.choices[0].message.content.strip())
-            
+
             # 保存当前对话到历史记录
             self._save_conversation_to_history(msg, user_input, reply, is_image=False)
 
