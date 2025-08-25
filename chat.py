@@ -20,6 +20,22 @@ class BaseChatModel:
         self.history_file = os.path.abspath(os.path.join(plugin_dir, './cache/history.json')).replace("\\", "/")
         self.history = self._load_history()
 
+    def _clean_reply(self, text):
+        """清理回复中的Markdown格式符号"""
+        # 从配置文件中获取需要清理的符号
+        cleanup_chars = self.config.get('cleanup_chars', [])
+
+        for char in cleanup_chars:
+            text = text.replace(char, "")
+
+        # 移除think标签及其内容（深度思考内容）
+        text = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL)
+
+        # 清理多余的空白行
+        text = re.sub(r'\n\s*\n', '\n', text)
+
+        return text.strip()
+
     def _load_history(self):
         """加载历史记录"""
         try:
@@ -204,7 +220,7 @@ class ChatModelLangchain(BaseChatModel):
             system_prompt = system_prompt_manager.get_system_prompt()
             if not any(isinstance(msg, SystemMessage) for msg in messages):
                 messages = [SystemMessage(content=system_prompt)] + messages
-
+            print(f"{system_prompt}")
             response = await model_with_tools.ainvoke(messages)
             return {"messages": [response]}
 

@@ -293,7 +293,7 @@ class ModelChat(BasePlugin):
         # 获取新的系统提示词
         text = msg.raw_message.strip()
         if text.startswith("#system_prompt"):
-            new_prompt = text[20:].strip()  # 去掉指令部分
+            new_prompt = text[14:].strip()  # 去掉指令部分
         else:
             new_prompt = text.strip()
 
