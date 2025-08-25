@@ -1,42 +1,39 @@
-import json,os
+import json, os
 from ncatbot.core import GroupMessage
 from ncatbot.utils import config
+from .utils import ConfigManager
+
+
 class BanManager:
     def __init__(self, plugin_dir):
-        self.banlist_file = os.path.join(plugin_dir, 'data.json')
+        self.plugin_dir = plugin_dir
+        self.config_manager = ConfigManager(plugin_dir)
+        self.banlist_file = self.config_manager.get_data_path()
         self.banlist = self._load_banlist()
 
     def _load_banlist(self):
         """加载ban列表"""
         try:
-            if os.path.exists(self.banlist_file):
-                with open(self.banlist_file, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-                    # 确保所有必要的键都存在
-                    if "banned_groups" not in data:
-                        data["banned_groups"] = []
-                    if "banned_users" not in data:
-                        data["banned_users"] = []
-                    if "blocked_words" not in data:
-                        data["blocked_words"] = []
+            # 通过ConfigManager加载数据
+            data = self.config_manager.load_data()
+            # 确保所有必要的键都存在
+            if "banned_groups" not in data:
+                data["banned_groups"] = []
+            if "banned_users" not in data:
+                data["banned_users"] = []
+            if "blocked_words" not in data:
+                data["blocked_words"] = []
 
-                    return data
-            else:
-                # 如果文件不存在，创建默认的ban列表文件
-                default_data = {"banned_groups": [], "banned_users": [], "blocked_words": []}
-                with open(self.banlist_file, 'w', encoding='utf-8') as f:
-                    json.dump(default_data, f, ensure_ascii=False, indent=2)
-                return default_data
+            return data
         except Exception as e:
             print(f"加载ban列表出错: {e}")
         return {"banned_groups": [], "banned_users": [], "blocked_words": []}
 
-
     def _save_banlist(self):
         """保存ban列表"""
         try:
-            with open(self.banlist_file, 'w', encoding='utf-8') as f:
-                json.dump(self.banlist, f, ensure_ascii=False, indent=2)
+            # 通过ConfigManager保存数据
+            self.config_manager.save_data(self.banlist)
         except Exception as e:
             print(f"保存ban列表出错: {e}")
 
@@ -131,7 +128,7 @@ class BanManager:
 
     def _handle_ban_unban_command(self, msg, admins, chat_model_instance, is_ban=True):
         """处理ban/unban命令的通用函数"""
-        # 检查是否为管理员
+        # 检查是否为管理员或超级管理员
         if hasattr(msg, 'user_id') and str(msg.user_id) not in admins and str(msg.user_id) != config.root:
             return "您没有权限执行此操作。", True
 

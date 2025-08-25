@@ -1,26 +1,28 @@
 from ncatbot.plugin import BasePlugin, CompatibleEnrollment
 from ncatbot.core import BaseMessage, GroupMessage
-from .chat import ChatModel, ChatUtils, ChatModelLangchain
+from .chat import ChatModel, ChatModelLangchain
+from .utils import ChatUtils
 from .ban import BanManager
 import os,yaml
 
 bot = CompatibleEnrollment  # 兼容回调函数注册器
 
 # 根据配置决定使用哪个模型类
-config_path = os.path.join(os.path.dirname(__file__), 'config.yml')
+plugin_dir = os.path.dirname(__file__)
+config_path = os.path.join(plugin_dir, 'config.yml')
 with open(config_path, 'r', encoding='utf-8') as f:
     config = yaml.safe_load(f)
 
 # 检查是否启用MCP系统
 if config.get('enable_mcp', True):
-    chat_model_instance = ChatModelLangchain(config_path)  # 使用Langchain实现
+    chat_model_instance = ChatModelLangchain(plugin_dir)  # 使用Langchain实现
     print("MCP 已启用")
 else:
-    chat_model_instance = ChatModel(config_path)  # 使用原始实现（兼容性更好）
+    chat_model_instance = ChatModel(plugin_dir)  # 使用原始实现（兼容性更好）
     print("MCP 已禁用")
 
-chat_utils = ChatUtils(config_path)  # 创建 ChatUtils 实例
-ban_manager = BanManager(os.path.dirname(__file__))  # 创建 BanManager 实例
+chat_utils = ChatUtils(plugin_dir)  # 创建 ChatUtils 实例
+ban_manager = BanManager(plugin_dir)  # 创建 BanManager 实例
 
 
 class ModelChat(BasePlugin):
@@ -117,7 +119,7 @@ class ModelChat(BasePlugin):
             user_input = msg.raw_message.strip()
             
             # 检查是否被ban或包含违禁词
-            if await chat_utils.check_ban_and_blocked_words(msg, chat_model_instance, user_input):
+            if await chat_utils.check_ban_and_blocked_words(msg, user_input):
                 print("被 ban 或存在违禁词，被移出持续对话模式")
                 # 从活动对话中移除被ban的用户
                 self.active_chats.discard(msg.user_id)
@@ -190,7 +192,7 @@ class ModelChat(BasePlugin):
         user_input = text[3:].strip() if text.startswith('#chat') else text[5:].strip()
 
         # 检查是否被ban或包含违禁词
-        if await chat_utils.check_ban_and_blocked_words(msg, chat_model_instance, user_input):
+        if await chat_utils.check_ban_and_blocked_words(msg, user_input):
             print("被 ban 或存在违禁词，拒绝发送请求")
             return
 

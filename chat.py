@@ -6,90 +6,23 @@ from langchain_mcp_adapters.client import MultiServerMCPClient
 from langgraph.graph import StateGraph, MessagesState, START, END
 from langgraph.prebuilt import ToolNode
 from .ban import BanManager
+from .utils import ConfigManager
 import json, yaml, os, requests, base64,re
-
-class ChatUtils:
-    def __init__(self, config_path):
-        """初始化工具类"""
-        self.config_path = config_path
-        # 不直接创建chat_model_instance，而是在使用时传入实例
-        self.ban_manager = BanManager(os.path.dirname(config_path))
-
-    async def check_ban_and_blocked_words(self, msg: BaseMessage, chat_model_instance, user_input: str = ""):
-        """检查是否被ban或包含违禁词"""
-        # 检查是否被ban
-        if self.ban_manager.is_banned(msg):
-            await msg.reply(text="您或您所在的群组已被禁止使用此功能。")
-            return True
-
-        # 检查用户输入是否包含违禁词
-        if user_input and self.ban_manager.check_blocked_words(user_input):
-            await msg.reply(text="您的消息包含违禁词，无法处理。")
-            return True
-
-        return False
-
-    async def process_image_input(self, msg: BaseMessage, chat_model_instance, user_input: str):
-        """处理图像输入"""
-        image_url = None
-        if hasattr(msg, 'message') and isinstance(msg.message, list):
-            for segment in msg.message:
-                if isinstance(segment, dict) and segment.get("type") == "image":
-                    image_url = segment.get("data", {}).get("url")
-                    break
-
-        # 如果是图像消息且开启了图像识别功能，进行图像识别
-        if image_url and chat_model_instance.config.get('enable_vision', True):
-            # 使用图像识别功能，直接调用视觉模型处理图片和用户问题
-            # 如果用户没有发送问题，则默认对图片进行描述
-            vision_prompt = user_input if user_input else "请描述这张图片"
-            image_description = await chat_model_instance.recognize_image_with_prompt(image_url, vision_prompt)
-
-            # 检查图片描述是否包含违禁词
-            if self.ban_manager.check_blocked_words(image_description):
-                await msg.reply(text="图片内容包含违禁词，无法处理。")
-                return None
-
-            # 直接返回视觉模型的回复，不再进行第二次调用
-            return image_description
-
-        elif image_url and not chat_model_instance.config.get('enable_vision', True):
-            # 图像识别功能未开启
-            user_input = f"用户发送了一张图片，但图像识别功能未开启。用户说：{user_input}"
-
-        return user_input
-
-    async def generate_response(self, msg: BaseMessage, chat_model_instance, user_input: str):
-        """生成模型回复"""
-        try:
-            # 如果user_input已经是视觉模型的回复，则直接返回
-            if hasattr(msg, 'message') and isinstance(msg.message, list):
-                for segment in msg.message:
-                    if isinstance(segment, dict) and segment.get("type") == "image":
-                        return user_input
-
-            # 否则使用普通模型处理
-            reply = await chat_model_instance.useModel(msg, user_input)
-
-        except Exception as e:
-            reply = f"{str(e)}"
-
-        return reply
-
 
 class BaseChatModel:
     """聊天模型的基类"""
-    def __init__(self, config_path):
+    def __init__(self, plugin_dir):
         """初始化参数"""
-        with open(config_path, 'r', encoding='utf-8') as f:
-            self.config = yaml.safe_load(f)
+        self.plugin_dir = plugin_dir
+        self.config_manager = ConfigManager(plugin_dir)
+        self.config = self.config_manager.load_config()
         
         # 初始化历史记录存储
-        self.history_file = os.path.abspath(os.path.join(os.path.dirname(config_path), './cache/history.json')).replace("\\", "/")
+        self.history_file = os.path.abspath(os.path.join(plugin_dir, './cache/history.json')).replace("\\", "/")
         self.history = self._load_history()
         
         # 初始化违禁词列表
-        self.blocklist_file = os.path.abspath(os.path.join(os.path.dirname(config_path), 'blocklist.json'))
+        self.blocklist_file = os.path.abspath(os.path.join(plugin_dir, 'blocklist.json'))
         self.blocklist = self._load_blocklist()
 
     def _load_blocklist(self):
@@ -121,7 +54,7 @@ class BaseChatModel:
             text = text.replace(char, "")
         
         # 移除think标签及其内容（深度思考内容）
-        text = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL)
+        text = re.sub(r'', '', text, flags=re.DOTALL)
         
         # 清理多余的空白行
         text = re.sub(r'\n\s*\n', '\n', text)
@@ -236,9 +169,9 @@ class BaseChatModel:
 
 
 class ChatModelLangchain(BaseChatModel):
-    def __init__(self, config_path):
+    def __init__(self, plugin_dir):
         """使用Langchain初始化参数"""
-        super().__init__(config_path)
+        super().__init__(plugin_dir)
 
         # 初始化 Langchain ChatOpenAI 客户端
         self.client = ChatOpenAI(
@@ -260,7 +193,7 @@ class ChatModelLangchain(BaseChatModel):
         self.mcp_tools = []
         self.graph = None
 
-        mcp_config_file = os.path.join(os.path.dirname(config_path), "mcp_config.json")
+        mcp_config_file = os.path.join(plugin_dir, "mcp_config.json")
         if os.path.exists(mcp_config_file):
             try:
                 with open(mcp_config_file, "r", encoding="utf-8") as f:
@@ -269,6 +202,8 @@ class ChatModelLangchain(BaseChatModel):
                     self.mcp_client = MultiServerMCPClient(mcp_config)
             except Exception as e:
                 print(f"加载 MCP 配置失败: {e}")
+        else:
+            print("未找到 mcp_config.json 文件，MCP 功能将不可用")
 
         # 内存
         self.user_histories = {}
@@ -317,7 +252,7 @@ class ChatModelLangchain(BaseChatModel):
             last_message = state["messages"][-1]
             # 检查是否有工具调用
             if hasattr(last_message, "tool_calls") and last_message.tool_calls:
-                return "tools"
+                return "tools" if tool_node else END
             # 如果没有工具调用，直接结束
             return END
 
@@ -331,7 +266,7 @@ class ChatModelLangchain(BaseChatModel):
             "call_model",
             should_continue,
             {
-                "tools": "tools",
+                "tools": "tools" if tool_node else END,
                 END: END,
             }
         )
