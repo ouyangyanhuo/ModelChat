@@ -1,5 +1,7 @@
 {
-  "banned_groups": [],
+  "banned_groups": [
+    "<群号>"
+  ],
   "banned_users": [],
   "blocked_words": []
 }

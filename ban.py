@@ -3,7 +3,7 @@ from ncatbot.core import GroupMessage
 from ncatbot.utils import config
 class BanManager:
     def __init__(self, plugin_dir):
-        self.banlist_file = os.path.join(plugin_dir, 'banlist.json')
+        self.banlist_file = os.path.join(plugin_dir, 'data.json')
         self.banlist = self._load_banlist()
 
     def _load_banlist(self):
@@ -44,7 +44,7 @@ class BanManager:
         """检查用户或群组是否被ban"""
         # 每次检查时都重新加载最新的ban列表
         latest_banlist = self._load_banlist()
-        
+
         # 检查用户是否被ban
         if hasattr(msg, 'user_id') and str(msg.user_id) in latest_banlist["banned_users"]:
             return True
@@ -59,7 +59,7 @@ class BanManager:
         """检查文本是否包含违禁词"""
         # 每次检查时都重新加载最新的违禁词列表
         latest_banlist = self._load_banlist()
-        
+
         for block_word in latest_banlist["blocked_words"]:
             if block_word in text:
                 return True
@@ -132,7 +132,7 @@ class BanManager:
     def _handle_ban_unban_command(self, msg, admins, chat_model_instance, is_ban=True):
         """处理ban/unban命令的通用函数"""
         # 检查是否为管理员
-        if hasattr(msg, 'user_id') and str(msg.user_id) not in admins:
+        if hasattr(msg, 'user_id') and str(msg.user_id) not in admins and str(msg.user_id) != config.root:
             return "您没有权限执行此操作。", True
 
         # 检查是否被ban
@@ -152,11 +152,13 @@ class BanManager:
             action = parts[1]  # group || user || word
             target = parts[2]  # 群号 || QQ号 || 违禁词
 
-            # 只有在添加ban时才检查是否尝试ban超级管理员
+            # 在添加 ban 时检查是否为超级管理员
             if is_ban and action in ["group", "user"] and target == config.root:
                 return "禁止对超级管理员进行 ban 操作。", False
 
             if action == "group":
+                if not target.isdigit():
+                    return "群组ID必须为数字", False
                 result = self.add_ban("group", target) if is_ban else self.remove_ban("group", target)
                 if result:
                     return f"已将群组 {target} {operation}ban列表。", False
@@ -164,12 +166,14 @@ class BanManager:
                     return f"群组 {target} {reverse_status_word}ban列表中。", False
 
             elif action == "user":
+                if not target.isdigit():
+                    return "用户ID必须为数字", False
                 result = self.add_ban("user", target) if is_ban else self.remove_ban("user", target)
                 if result:
                     return f"已将用户 {target} {operation}ban列表。", False
                 else:
                     return f"用户 {target} {reverse_status_word}ban列表中。", False
-                    
+
             elif action == "word":
                 result = self.add_blocked_word(target) if is_ban else self.remove_blocked_word(target)
                 if result:

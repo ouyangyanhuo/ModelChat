@@ -61,6 +61,8 @@ ModelChat/
 [Magneto](https://fmcf.cc)
 
 ## 更新日志
+- 2.1.0
+  - 优化 Ban 系统的逻辑
 - 2.0.0
   - 修复多项错误
   - 重构了核心逻辑

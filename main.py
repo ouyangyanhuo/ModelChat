@@ -25,7 +25,7 @@ ban_manager = BanManager(os.path.dirname(__file__))  # 创建 BanManager 实例
 
 class ModelChat(BasePlugin):
     name = "ModelChat"
-    version = "2.0.0"
+    version = "2.1.0"
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -264,7 +264,7 @@ class ModelChat(BasePlugin):
             await msg.reply(text="您或您所在的群组已被禁止使用此功能。")
             return
             
-        menu_text = "=== 大模型聊天插件使用菜单 ===\n\n"
+        menu_text = "=== 大模型聊天 ===\n\n"
         
         # 遍历所有指令信息
         for cmd in self.commands:
