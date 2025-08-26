@@ -52,8 +52,8 @@ ModelChat/
 ├── utils.py            -- 插件工具类
 ├── commands.py         -- 指令管理
 ├── config.yml          -- 配置文件
-└── data.json           -- 插件数据文件
-├── mcp_config.json     -- MCP 配置文件
+├── data.json           -- 插件数据文件
+└── mcp_config.json     -- MCP 配置文件
 ```
 
 ## 作者
