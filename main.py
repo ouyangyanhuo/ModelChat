@@ -126,7 +126,7 @@ class ModelChat(BasePlugin):
         print(f"收到开始对话请求，用户ID: {msg.user_id}")
         
         # 检查是否被ban
-        if ban_manager.is_banned(msg):
+        if ban_manager.is_banned(msg): # type: ignore
             await msg.reply(text="您或您所在的群组已被禁止使用此功能。")
             return
 
@@ -189,11 +189,11 @@ class ModelChat(BasePlugin):
 
     async def chat_history(self, msg: BaseMessage):
         # 检查是否被ban
-        if ban_manager.is_banned(msg):
+        if ban_manager.is_banned(msg): # type: ignore
             await msg.reply(text="您或您所在的群组已被禁止使用此功能。")
             return
 
-        reply = await chat_model_instance.clear_user_history(msg.user_id)
+        reply = await chat_model_instance.clear_user_history(msg.user_id) # type: ignore
         await msg.reply(text=reply)
     async def ban_manager(self, msg: GroupMessage):
         """管理ban列表的指令"""
@@ -213,14 +213,12 @@ class ModelChat(BasePlugin):
         if is_ban:
             reply_text, should_return = ban_manager.handle_ban_command(
                 msg, 
-                self.chat_model.get('admins', []), 
-                chat_model_instance
+                self.chat_model.get('admins', []),
             )
         else:
             reply_text, should_return = ban_manager.handle_unban_command(
                 msg, 
-                self.chat_model.get('admins', []), 
-                chat_model_instance
+                self.chat_model.get('admins', []),
             )
         
         # 如果需要提前返回（如被ban或无权限）
@@ -286,7 +284,7 @@ class ModelChat(BasePlugin):
             return
 
         # 检查是否被ban
-        if ban_manager.is_banned(msg):
+        if ban_manager.is_banned(msg): # type: ignore
             await msg.reply(text="您或您所在的群组已被禁止使用此功能。")
             return
 
@@ -331,13 +329,13 @@ class ModelChat(BasePlugin):
 
         await chat_utils.handle_remove_clear_word(msg, ban_manager)
 
-    async def list_blocked_words(self, msg: GroupMessage):
+    async def list_clear_words(self, msg: GroupMessage):
         """查看过滤词列表"""
         # 检查是否处于持续对话模式中
         if self._check_active_chat(msg):
             return
 
-        await chat_utils.handle_list_blocked_words(msg, ban_manager)
+        await chat_utils.handle_list_clear_words(msg, ban_manager)
 
     async def add_admin(self, msg: GroupMessage):
         """添加管理员（仅限超级管理员）"""

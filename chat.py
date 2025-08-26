@@ -22,16 +22,17 @@ class BaseChatModel:
 
     def _clean_reply(self, text):
         """清理回复中的Markdown格式符号"""
-        # 从data.json中获取需要清理的符号
-        cleanup_chars = self.data_config.get('cleanup_chars', [])
+        # 从配置文件中获取需要清理的符号
+        cleanup_chars = self.config.get('cleanup_chars', [])
 
         for char in cleanup_chars:
             text = text.replace(char, "")
 
+        # 移除think标签及其内容（深度思考内容）
+        text = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL)
+
         # 清理多余的空白行
         text = re.sub(r'\n\s*\n', '\n', text)
-
-        return text.strip()
 
     def _load_history(self):
         """加载历史记录"""
@@ -53,10 +54,10 @@ class BaseChatModel:
             # 确保文件存在
             if not os.path.exists(self.history_file):
                 with open(self.history_file, 'w', encoding='utf-8') as f:
-                    json.dump({}, f, ensure_ascii=False, indent=2)
+                    json.dump({}, f, ensure_ascii=False, indent=2)  # type: ignore
 
             with open(self.history_file, 'w', encoding='utf-8') as f:
-                json.dump(self.history, f, ensure_ascii=False, indent=2)
+                json.dump(self.history, f, ensure_ascii=False, indent=2)  # type: ignore
         except Exception as e:
             print(f"FUCKING ERROR 保存历史记录出错: {e}")
 
@@ -248,8 +249,8 @@ class ChatModelLangchain(BaseChatModel):
             # 如果没有工具调用，直接结束
             return END
 
-        builder = StateGraph(MessagesState)
-        builder.add_node("call_model", call_model)
+        builder = StateGraph(MessagesState)         # type: ignore
+        builder.add_node("call_model", call_model)  # type: ignore
         if tool_node:
             builder.add_node("tools", tool_node)
 
@@ -313,7 +314,7 @@ class ChatModelLangchain(BaseChatModel):
 
             # 传入包含历史记录的 LangChain 消息对象
             response = await graph.ainvoke(
-                {"messages": messages}
+                {"messages": messages}  # type: ignore
             )
 
             reply = self._clean_reply(response["messages"][-1].content)

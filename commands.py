@@ -1,6 +1,6 @@
 # 指令配置文件
 # 仅超级管理员可执行的指令
-SUPER_ADMIN_ONLY_COMMANDS = ["Add Admin", "Remove Admin"]
+SUPER_ADMIN_ONLY_COMMANDS = ["Add Admin", "Remove Admin", "System Prompt", "Add Clear Word", "Remove Clear Word","List Admins","List Clear Words"]
 # 普通用户指令
 USER_COMMANDS = [
     {
@@ -64,38 +64,38 @@ ADMIN_COMMANDS = [
         "examples": ["#system_prompt <提示词>"]
     },
     {
-        "name": "Add Blocked Word",
+        "name": "Add Clear Word",
         "prefix": "#add_clear_word",
         "handler": "add_clear_word",
         "description": "添加输出过滤词",
         "examples": ["#add_clear_word <过滤词>"]
     },
     {
-        "name": "Remove Blocked Word",
+        "name": "Remove Clear Word",
         "prefix": "#remove_clear_word",
         "handler": "remove_clear_word",
         "description": "删除输出过滤词",
         "examples": ["#remove_clear_word <过滤词>"]
     },
     {
-        "name": "List Blocked Words",
-        "prefix": "#list_blocked_words",
-        "handler": "list_blocked_words",
+        "name": "List Clear Words",
+        "prefix": "#list_clear_words",
+        "handler": "list_clear_words",
         "description": "查看输出过滤词列表",
-        "examples": ["#list_blocked_words"]
+        "examples": ["#list_clear_words"]
     },
     {
         "name": "Add Admin",
         "prefix": "#add_admin",
         "handler": "add_admin",
-        "description": "添加管理员（仅限超级管理员）",
+        "description": "添加管理员",
         "examples": ["#add_admin <QQ号>"]
     },
     {
         "name": "Remove Admin",
         "prefix": "#remove_admin",
         "handler": "remove_admin",
-        "description": "删除管理员（仅限超级管理员）",
+        "description": "删除管理员",
         "examples": ["#remove_admin <QQ号>"]
     },
     {

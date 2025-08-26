@@ -1,4 +1,3 @@
-import json, os
 from ncatbot.core import GroupMessage
 from ncatbot.utils import config
 from .utils import ConfigManager
@@ -117,15 +116,15 @@ class BanManager:
         """获取违禁词列表"""
         return self.banlist["blocked_words"]
 
-    def handle_ban_command(self, msg, admins, chat_model_instance):
+    def handle_ban_command(self, msg, admins):
         """处理ban命令"""
-        return self._handle_ban_unban_command(msg, admins, chat_model_instance, is_ban=True)
+        return self._handle_ban_unban_command(msg, admins, is_ban=True)
 
-    def handle_unban_command(self, msg, admins, chat_model_instance):
+    def handle_unban_command(self, msg, admins):
         """处理unban命令"""
-        return self._handle_ban_unban_command(msg, admins, chat_model_instance, is_ban=False)
+        return self._handle_ban_unban_command(msg, admins,is_ban=False)
 
-    def _handle_ban_unban_command(self, msg, admins, chat_model_instance, is_ban=True):
+    def _handle_ban_unban_command(self, msg, admins, is_ban=True):
         """处理ban/unban命令的通用函数"""
         # 检查是否为管理员或超级管理员
         if hasattr(msg, 'user_id') and str(msg.user_id) not in admins and str(msg.user_id) != config.root:

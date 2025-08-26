@@ -1,4 +1,4 @@
-from ncatbot.core import GroupMessage, BaseMessage
+from ncatbot.core import BaseMessage
 from ncatbot.utils import config as bot_config
 import json, yaml, os
 
@@ -57,7 +57,7 @@ class ConfigManager:
         """保存数据到JSON文件"""
         try:
             with open(self.data_path, 'w', encoding='utf-8') as f:
-                json.dump(data, f, ensure_ascii=False, indent=2)
+                json.dump(data, f, ensure_ascii=False, indent=2) # type: ignore
         except Exception as e:
             print(f"保存数据文件出错: {e}")
 
@@ -103,7 +103,7 @@ class ChatUtils:
     async def check_ban_and_blocked_words(self, msg: BaseMessage, user_input: str = ""):
         """检查是否被ban或包含违禁词"""
         # 检查是否被ban
-        if self.ban_manager.is_banned(msg):
+        if self.ban_manager.is_banned(msg): # type: ignore
             await msg.reply(text="您或您所在的群组已被禁止使用此功能。")
             return True
 
@@ -206,7 +206,7 @@ class ChatUtils:
             await msg.reply(text=f"过滤词 '{word}' 已在列表中。" if is_add 
                               else f"过滤词 '{word}' 不在列表中。")
 
-    async def handle_list_blocked_words(self, msg: BaseMessage, ban_manager):
+    async def handle_list_clear_words(self, msg: BaseMessage, ban_manager):
         """处理查看过滤词列表"""
         # 检查是否为超级管理员
         if not self.is_super_admin(msg.user_id):

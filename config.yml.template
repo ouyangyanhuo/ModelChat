@@ -28,16 +28,3 @@ enable_continuous_session: true
 # 是否启用 MCP 系统
 # 启用后本地模型兼容性较差，需要配置 mcp_config.json 文件
 enable_mcp: false
-
-# 模型提示词
-system_prompt: "你是一个聊天助手"
-
-# 清理符号
-cleanup_chars:
-  - "**"
-  - "#"
-
-# 管理员列表
-admins:
-  - "userID 1"
-  - "userID 2"
