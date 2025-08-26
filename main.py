@@ -4,6 +4,7 @@ from ncatbot.utils import config as bot_config
 from .chat import ChatModel, ChatModelLangchain
 from .utils import ChatUtils, SystemPromptManager, ConfigManager
 from .ban import BanManager
+from .commands import USER_COMMANDS, ADMIN_COMMANDS, SUPER_ADMIN_ONLY_COMMANDS
 import os,yaml
 
 bot = CompatibleEnrollment  # 兼容回调函数注册器
@@ -39,8 +40,17 @@ class ModelChat(BasePlugin):
         # 用于存储指令
         self.commands = []
         self.admin_commands = []
+        # 仅超级管理员可执行的操作
+        self.super_admin_only_commands = SUPER_ADMIN_ONLY_COMMANDS
         # 用于跟踪处于对话模式中的用户
         self.active_chats = set()
+
+    def _check_active_chat(self, msg):
+        """检查并处理用户处于持续对话模式的情况"""
+        if msg.user_id in self.active_chats:
+            print(f"收到用户 {msg.user_id} 的消息，但处于持续对话模式中，拒绝调用该功能。")
+            return True
+        return False
 
     async def on_load(self):
         # 插件加载提示
@@ -57,100 +67,14 @@ class ModelChat(BasePlugin):
         self.chat_model['admins'] = data_config.get('admins', [])
             
         # 注册指令
-        self.commands = [
-            {
-                "name": "Start Chat",
-                "prefix": "#start_chat",
-                "handler": self.start_chat,
-                "description": "开始持续对话模式",
-                "examples": ["#start_chat"]
-            },
-            {
-                "name": "End Chat",
-                "prefix": "#stop_chat",
-                "handler": self.stop_chat,
-                "description": "结束持续对话模式",
-                "examples": ["#stop_chat"]
-            },
-            {
-                "name": "ModelChat",
-                "prefix": "#chat",
-                "handler": self.chat,
-                "description": "单次聊天功能",
-                "examples": ["#chat <message>","#chat <photo>","#chat <message>+<photo>"]
-            },
-            {
-                "name": "Clear History",
-                "prefix": "#clear chat_history",
-                "handler": self.chat_history,
-                "description": "清除聊天记忆",
-                "examples": ["#clear chat_history"]
-            },
-            {
-                "name": "Chat Menu",
-                "prefix": "聊天菜单",
-                "handler": self.chat_menu,
-                "description": "显示聊天插件的使用菜单",
-                "examples": ["聊天菜单"]
-            },
-        ]
-        # 注册管理员命令
-        self.admin_commands = [
-            {
-                "name": "Ban Manager",
-                "prefix": "#ban_chat",
-                "handler": self.ban_manager,
-                "description": "添加违禁词 或 禁止群组/人使用该插件",
-                "examples": ["#ban_chat word <message>","#ban_chat group <groupID>","#ban_chat user <userID>"]
-            },
-            {
-                "name": "Unban Manager",
-                "prefix": "#ban_remove",
-                "handler": self.unban_manager,
-                "description": "移除违禁词 或 解除群组/人的禁用",
-                "examples": ["#ban_remove word <message>","#ban_remove group <groupID>","#ban_remove user <userID>"]
-            },
-            {
-                "name": "System Prompt",
-                "prefix": "#system_prompt",
-                "handler": self.system_prompt_handler,
-                "description": "修改系统提示词",
-                "examples": ["#system_prompt <提示词>"]
-            },
-            {
-                "name": "Add Blocked Word",
-                "prefix": "#add_blocked_word",
-                "handler": self.add_blocked_word,
-                "description": "添加过滤词",
-                "examples": ["#add_blocked_word <过滤词>"]
-            },
-            {
-                "name": "List Blocked Words",
-                "prefix": "#list_blocked_words",
-                "handler": self.list_blocked_words,
-                "description": "查看过滤词列表",
-                "examples": ["#list_blocked_words"]
-            },
-            {
-                "name": "Add Admin",
-                "prefix": "#add_admin",
-                "handler": self.add_admin,
-                "description": "添加管理员（仅限超级管理员）",
-                "examples": ["#add_admin <QQ号>"]
-            },
-            {
-                "name": "List Admins",
-                "prefix": "#list_admins",
-                "handler": self.list_admins,
-                "description": "查看管理员列表",
-                "examples": ["#list_admins"]
-            }
-        ]
+        self.commands = USER_COMMANDS
+        self.admin_commands = ADMIN_COMMANDS
+            
         # 实际注册指令
         for cmd in self.commands:
             self.register_user_func(
                 name=cmd["name"],
-                handler=cmd["handler"],
+                handler=getattr(self, cmd["handler"]),
                 prefix=cmd["prefix"]
             )
             
@@ -158,7 +82,7 @@ class ModelChat(BasePlugin):
         for cmd in self.admin_commands:
             self.register_user_func(
                 name=cmd["name"],
-                handler=cmd["handler"],
+                handler=getattr(self, cmd["handler"]),
                 prefix=cmd["prefix"]
             )
 
@@ -241,8 +165,7 @@ class ModelChat(BasePlugin):
 
     async def chat(self, msg: BaseMessage):
         # 检查是否处于持续对话模式中
-        if msg.user_id in self.active_chats:
-            print(f"收到用户 {msg.user_id} 的消息，但处于持续对话模式中，拒绝调用该功能。")
+        if self._check_active_chat(msg):
             return
 
         text = msg.raw_message.strip()
@@ -284,8 +207,7 @@ class ModelChat(BasePlugin):
     async def _handle_ban_unban_command(self, msg: GroupMessage, is_ban=True):
         """处理ban/unban命令的通用函数"""
         # 检查是否处于持续对话模式中
-        if msg.user_id in self.active_chats:
-            print(f"收到用户 {msg.user_id} 的消息，但处于持续对话模式中，拒绝调用该功能。")
+        if self._check_active_chat(msg):
             return
 
         # 使用ban_manager处理命令
@@ -313,8 +235,7 @@ class ModelChat(BasePlugin):
     async def system_prompt_handler(self, msg: GroupMessage):
         """处理系统提示词修改指令"""
         # 检查是否处于持续对话模式中
-        if msg.user_id in self.active_chats:
-            print(f"收到用户 {msg.user_id} 的消息，但处于持续对话模式中，拒绝调用该功能。")
+        if self._check_active_chat(msg):
             return
 
         # 检查是否为超级管理员（参考ban.py的实现方式）
@@ -365,8 +286,7 @@ class ModelChat(BasePlugin):
     async def chat_menu(self, msg: BaseMessage):
         """显示聊天菜单"""
         # 检查是否处于持续对话模式中
-        if msg.user_id in self.active_chats:
-            print(f"收到用户 {msg.user_id} 的消息，但处于持续对话模式中，拒绝调用该功能。")
+        if self._check_active_chat(msg):
             return
 
         # 检查是否被ban
@@ -374,7 +294,7 @@ class ModelChat(BasePlugin):
             await msg.reply(text="您或您所在的群组已被禁止使用此功能。")
             return
 
-        menu_text = "=== 大模型聊天 ===\n\n"
+        menu_text = "===== 大模型聊天 =====\n\n"
 
         # 判断是否为管理员或超级管理员（参考ban.py的实现方式）
         is_admin = str(msg.user_id) in self.chat_model.get('admins', []) or str(msg.user_id) == bot_config.root
@@ -389,155 +309,60 @@ class ModelChat(BasePlugin):
         # 如果是管理员或超级管理员，添加管理员命令
         if is_admin:
             for cmd in self.admin_commands:
-                menu_text += self._format_command_info(cmd)
+                # 特殊处理仅超级管理员可执行的命令
+                if cmd.get('name') in self.super_admin_only_commands:
+                    if str(msg.user_id) == bot_config.root:
+                        menu_text += self._format_command_info(cmd)
+                else:
+                    menu_text += self._format_command_info(cmd)
 
         menu_text += "========================"
         await msg.reply(text=menu_text)
 
-    async def add_blocked_word(self, msg: GroupMessage):
+    async def add_clear_word(self, msg: GroupMessage):
         """添加过滤词"""
         # 检查是否处于持续对话模式中
-        if msg.user_id in self.active_chats:
-            print(f"收到用户 {msg.user_id} 的消息，但处于持续对话模式中，拒绝调用该功能。")
+        if self._check_active_chat(msg):
             return
 
-        # 检查是否为管理员或超级管理员
-        is_admin = (str(msg.user_id) in self.chat_model.get('admins', [])) or (str(msg.user_id) == bot_config.root)
-        if not is_admin:
-            await msg.reply(text="您没有权限执行此操作。")
+        await chat_utils.handle_add_clear_word(msg, ban_manager)
+
+    async def remove_clear_word(self, msg: GroupMessage):
+        """删除过滤词"""
+        # 检查是否处于持续对话模式中
+        if self._check_active_chat(msg):
             return
 
-        # 检查是否被ban
-        if ban_manager.is_banned(msg):
-            await msg.reply(text="您或您所在的群组已被禁止使用此功能。")
-            return
-
-        # 获取要添加的过滤词
-        text = msg.raw_message.strip()
-        if text.startswith("#add_blocked_word"):
-            word = text[17:].strip()  # 去掉指令部分
-        else:
-            word = text.strip()
-
-        if not word:
-            await msg.reply(text="请提供要添加的过滤词。")
-            return
-
-        # 添加过滤词
-        result = ban_manager.add_blocked_word(word)
-        if result:
-            await msg.reply(text=f"已将过滤词 '{word}' 添加到列表中。")
-        else:
-            await msg.reply(text=f"过滤词 '{word}' 已在列表中。")
+        await chat_utils.handle_remove_clear_word(msg, ban_manager)
 
     async def list_blocked_words(self, msg: GroupMessage):
         """查看过滤词列表"""
         # 检查是否处于持续对话模式中
-        if msg.user_id in self.active_chats:
-            print(f"收到用户 {msg.user_id} 的消息，但处于持续对话模式中，拒绝调用该功能。")
+        if self._check_active_chat(msg):
             return
 
-        # 检查是否为管理员或超级管理员
-        is_admin = (str(msg.user_id) in self.chat_model.get('admins', [])) or (str(msg.user_id) == bot_config.root)
-        if not is_admin:
-            await msg.reply(text="您没有权限执行此操作。")
-            return
-
-        # 检查是否被ban
-        if ban_manager.is_banned(msg):
-            await msg.reply(text="您或您所在的群组已被禁止使用此功能。")
-            return
-
-        # 获取过滤词列表
-        blocked_words = ban_manager.get_blocked_words()
-        if blocked_words:
-            word_list = "\n".join(blocked_words)
-            reply_text = f"当前过滤词列表：\n{word_list}"
-        else:
-            reply_text = "当前没有设置过滤词。"
-        
-        await msg.reply(text=reply_text)
+        await chat_utils.handle_list_blocked_words(msg, ban_manager, self.chat_model.get('admins', []))
 
     async def add_admin(self, msg: GroupMessage):
         """添加管理员（仅限超级管理员）"""
         # 检查是否处于持续对话模式中
-        if msg.user_id in self.active_chats:
-            print(f"收到用户 {msg.user_id} 的消息，但处于持续对话模式中，拒绝调用该功能。")
+        if self._check_active_chat(msg):
             return
 
-        # 检查是否为超级管理员
-        if str(msg.user_id) != bot_config.root:
-            await msg.reply(text="您没有权限执行此操作，仅超级管理员可以添加管理员。")
+        await chat_utils.handle_add_admin(msg, self.chat_model.get('admins', []))
+
+    async def remove_admin(self, msg: GroupMessage):
+        """删除管理员（仅限超级管理员）"""
+        # 检查是否处于持续对话模式中
+        if self._check_active_chat(msg):
             return
 
-        # 检查是否被ban
-        if ban_manager.is_banned(msg):
-            await msg.reply(text="您或您所在的群组已被禁止使用此功能。")
-            return
-
-        # 获取要添加的管理员QQ号
-        text = msg.raw_message.strip()
-        if text.startswith("#add_admin"):
-            admin_id = text[10:].strip()  # 去掉指令部分
-        else:
-            admin_id = text.strip()
-
-        if not admin_id:
-            await msg.reply(text="请提供要添加的管理员QQ号。")
-            return
-
-        if not admin_id.isdigit():
-            await msg.reply(text="管理员QQ号必须为数字。")
-            return
-
-        # 检查不能将超级管理员添加为普通管理员
-        if admin_id == bot_config.root:
-            await msg.reply(text="超级管理员无需添加到管理员列表。")
-            return
-
-        # 添加管理员
-        config_manager = ConfigManager(os.path.dirname(__file__))
-        data = config_manager.load_data()
-        
-        if 'admins' not in data:
-            data['admins'] = []
-            
-        if admin_id not in data['admins']:
-            data['admins'].append(admin_id)
-            config_manager.save_data(data)
-            # 更新内存中的配置
-            self.chat_model['admins'] = data.get('admins', [])
-            await msg.reply(text=f"已将用户 {admin_id} 添加为管理员。")
-        else:
-            await msg.reply(text=f"用户 {admin_id} 已是管理员。")
+        await chat_utils.handle_remove_admin(msg, self.chat_model.get('admins', []))
 
     async def list_admins(self, msg: GroupMessage):
         """查看管理员列表"""
         # 检查是否处于持续对话模式中
-        if msg.user_id in self.active_chats:
-            print(f"收到用户 {msg.user_id} 的消息，但处于持续对话模式中，拒绝调用该功能。")
+        if self._check_active_chat(msg):
             return
 
-        # 检查是否为管理员或超级管理员
-        is_admin = (str(msg.user_id) in self.chat_model.get('admins', [])) or (str(msg.user_id) == bot_config.root)
-        if not is_admin:
-            await msg.reply(text="您没有权限执行此操作。")
-            return
-
-        # 检查是否被ban
-        if ban_manager.is_banned(msg):
-            await msg.reply(text="您或您所在的群组已被禁止使用此功能。")
-            return
-
-        # 获取管理员列表
-        config_manager = ConfigManager(os.path.dirname(__file__))
-        data = config_manager.load_data()
-        admins = data.get('admins', [])
-
-        if admins:
-            admin_list = "\n".join([bot_config.root] + admins)  # 包含超级管理员
-            reply_text = f"当前管理员列表：\n{admin_list}"
-        else:
-            reply_text = f"当前管理员列表：\n{bot_config.root} (超级管理员)"
-        
-        await msg.reply(text=reply_text)
+        await chat_utils.handle_list_admins(msg, self.chat_model.get('admins', []))
