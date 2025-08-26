@@ -9,12 +9,15 @@
 ](https://www.modelscope.cn/mcp/servers/@Joooook/12306-mcp)，但建议不要过多使用，使用 MCP 功能会多次调用 API，TOKENS 消耗速度略快
 
 ## 开始使用
+
 使用 `聊天菜单` 指令，可以获取所有指令，当配置为 Nacatbot 管理员时，会被认为是超级管理。
 
 管理员、超级管理员会自动加载其专属的指令项目
 
 注意：使用持续会话时会拒绝该用户除结束指令外的所有指令请求
 
+## 系统架构
+![](./images//architecture.png)
 ## 使用配置
 -  安装依赖
 
@@ -29,13 +32,11 @@ pip install -r requirements.txt
 
 ## 注意事项
 
-- 模型的记忆文件位于插件目录 `/cache/history.json`，没有该文件会自动生成
+- 解压文件夹名称必须为 ModelChat
 
 - 用户若要使用本地大模型，请先确保本地模型系统的配置正确
 
-- 介于本地大模型能力，暂不支持本地大模型的图像识别
-
-- 解压文件夹名称必须为 ModelChat
+- 模型的记忆文件位于插件目录 `/cache/history.json`，没有该文件会自动生成
 
 - 模型图像识别方式：user input photo -> vision model -> text -> chat model -> output, 因此需要调用两次 API，无论是本地大模型还是云端大模型都是如此
 
@@ -48,6 +49,8 @@ ModelChat/
 ├── ban.py              -- 违禁词管理系统
 ├── chat.py             -- 聊天核心
 ├── main.py             -- 插件主程序
+├── utils.py            -- 插件工具类
+├── commands.py         -- 指令管理
 ├── config.yml          -- 配置文件
 └── data.json           -- 插件数据文件
 ├── mcp_config.json     -- MCP 配置文件
