@@ -37,7 +37,9 @@ class ConfigManager:
                     "banned_groups": [],
                     "banned_users": [],
                     "blocked_words": [],
-                    "system_prompt": ""
+                    "system_prompt": "你是一个AI助手",
+                    "cleanup_chars": [],
+                    "admins": []
                 }
         except Exception as e:
             print(f"加载数据文件出错: {e}")
@@ -45,7 +47,9 @@ class ConfigManager:
                 "banned_groups": [],
                 "banned_users": [],
                 "blocked_words": [],
-                "system_prompt": ""
+                "system_prompt": "你是一个AI助手",
+                "cleanup_chars": [],
+                "admins": []
             }
 
     def save_data(self, data):

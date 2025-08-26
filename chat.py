@@ -15,21 +15,18 @@ class BaseChatModel:
         self.plugin_dir = plugin_dir
         self.config_manager = ConfigManager(plugin_dir)
         self.config = self.config_manager.load_config()
-
+        self.data_config = self.config_manager.load_data()
         # 初始化历史记录存储
         self.history_file = os.path.abspath(os.path.join(plugin_dir, './cache/history.json')).replace("\\", "/")
         self.history = self._load_history()
 
     def _clean_reply(self, text):
         """清理回复中的Markdown格式符号"""
-        # 从配置文件中获取需要清理的符号
-        cleanup_chars = self.config.get('cleanup_chars', [])
+        # 从data.json中获取需要清理的符号
+        cleanup_chars = self.data_config.get('cleanup_chars', [])
 
         for char in cleanup_chars:
             text = text.replace(char, "")
-
-        # 移除think标签及其内容（深度思考内容）
-        text = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL)
 
         # 清理多余的空白行
         text = re.sub(r'\n\s*\n', '\n', text)
