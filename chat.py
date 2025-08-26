@@ -1,12 +1,12 @@
 from openai import OpenAI
-from ncatbot.core import GroupMessage, BaseMessage
+from ncatbot.core import GroupMessage
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage,SystemMessage, AIMessage
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from langgraph.graph import StateGraph, MessagesState, START, END
 from langgraph.prebuilt import ToolNode
 from .utils import ConfigManager,SystemPromptManager
-import json, yaml, os, requests, base64,re
+import json, os, requests, base64,re
 
 class BaseChatModel:
     """聊天模型的基类"""
@@ -60,6 +60,9 @@ class BaseChatModel:
         except Exception as e:
             print(f"FUCKING ERROR 保存历史记录出错: {e}")
 
+    def get_user_history(self, user_id):
+        """获取用户的历史记录（公共接口）"""
+        return self._get_user_history(user_id)
     def _get_user_history(self, user_id):
         """获取用户的历史记录"""
         return self.history.get(str(user_id), [])
@@ -119,6 +122,22 @@ class BaseChatModel:
             return base64.b64encode(response.content).decode('utf-8')
         except Exception as e:
             raise Exception(f"获取或编码图片失败: {str(e)}")
+
+    def _handle_model_error(self, error):
+        """处理模型错误的通用方法"""
+        error_str = str(error)
+        if "401" in error_str or "Unauthorized" in error_str:
+            return "模型API认证失败，请检查配置文件"
+        elif "400" in error_str:
+            return "模型服务 400 错误，请求参数错误，请检查大模型是否具备 MCP 功能"
+        elif "500" in error_str:
+            return "模型服务 500 错误，服务器内部错误，请检查云端大模型是否具备 MCP 功能"
+        elif "502" in error_str:
+            return "LLM 请求失败，请检查大模型是否开启"
+        elif "timeout" in error_str.lower() or "time out" in error_str.lower():
+            return "请求超时，请稍后重试"
+        else:
+            return f"请求出错了：{error_str}"
 
     async def recognize_image_with_prompt(self, image_url: str, prompt: str = "请描述这张图片"):
         """使用视觉模型识别图片并结合用户问题"""
@@ -301,20 +320,8 @@ class ChatModelLangchain(BaseChatModel):
             self._save_conversation_to_history(msg, user_input, reply)
 
         except Exception as e:
-            # 处理不同类型的错误
-            error_str = str(e)
-            if "401" in error_str or "Unauthorized" in error_str:
-                reply = "模型API认证失败，请检查配置文件"
-            elif "400" in error_str:
-                reply = "模型服务 400 错误，请求参数错误，请检查大模型是否具备 MCP 功能"
-            elif "500" in error_str:
-                reply = "模型服务 500 错误，服务器内部错误，请检查云端大模型是否具备 MCP 功能"
-            elif "502" in error_str:
-                reply = "LLM 请求失败，请检查大模型是否开启"
-            elif "timeout" in error_str.lower() or "time out" in error_str.lower():
-                reply = "请求超时，请稍后重试"
-            else:
-                reply = f"请求出错了：{error_str}"
+            # 使用通用错误处理方法
+            reply = self._handle_model_error(e)
         return reply
 
 
@@ -397,18 +404,6 @@ class ChatModel(BaseChatModel):
             self._save_conversation_to_history(msg, user_input, reply, is_image=False)
 
         except Exception as e:
-            # 处理不同类型的错误
-            error_str = str(e)
-            if "401" in error_str or "Unauthorized" in error_str:
-                reply = "模型API认证失败，请检查配置文件"
-            elif "400" in error_str:
-                reply = "模型服务 400 错误，请求参数错误，请检查大模型是否具备 MCP 功能"
-            elif "500" in error_str:
-                reply = "模型服务 500 错误，服务器内部错误，请检查云端大模型是否具备 MCP 功能"
-            elif "502" in error_str:
-                reply = "LLM 请求失败，请检查大模型是否开启"
-            elif "timeout" in error_str.lower() or "time out" in error_str.lower():
-                reply = "请求超时，请稍后重试"
-            else:
-                reply = f"请求出错了：{error_str}"
+            # 使用通用错误处理方法
+            reply = self._handle_model_error(e)
         return reply

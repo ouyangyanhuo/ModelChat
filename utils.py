@@ -93,6 +93,13 @@ class ChatUtils:
         self.ban_manager = BanManager(plugin_dir)
         self.system_prompt_manager = SystemPromptManager(plugin_dir)
 
+    def extract_command_arg(self, text, command_prefix):
+        """从消息中提取指令参数"""
+        text = text.strip()
+        if text.startswith(command_prefix):
+            return text[len(command_prefix):].strip()
+        return text.strip()
+
     async def check_ban_and_blocked_words(self, msg: BaseMessage, user_input: str = ""):
         """检查是否被ban或包含违禁词"""
         # 检查是否被ban
@@ -164,64 +171,46 @@ class ChatUtils:
 
     async def handle_add_clear_word(self, msg: BaseMessage, ban_manager):
         """处理添加输出过滤词"""
-        # 检查是否为超级管理员
-        if not self.is_super_admin(msg.user_id):
-            await msg.reply(text="您没有权限执行此操作。")
-            return
-
-        # 获取要添加的过滤词
-        text = msg.raw_message.strip()
-        if text.startswith("#add_clear_word"):
-            word = text[17:].strip()  # 去掉指令部分
-        else:
-            word = text.strip()
-
-        if not word:
-            await msg.reply(text="请提供要添加的过滤词。")
-            return
-
-        # 添加过滤词
-        result = ban_manager.add_clear_word(word)
-        if result:
-            await msg.reply(text=f"已将过滤词 '{word}' 添加到列表中。")
-        else:
-            await msg.reply(text=f"过滤词 '{word}' 已在列表中。")
+        await self.handle_clear_word(msg, ban_manager, is_add=True)
 
     async def handle_remove_clear_word(self, msg: BaseMessage, ban_manager):
         """处理删除过滤词"""
+        await self.handle_clear_word(msg, ban_manager, is_add=False)
+
+    async def handle_clear_word(self, msg: BaseMessage, ban_manager, is_add=True):
+        """处理添加/删除输出过滤词的通用方法"""
         # 检查是否为超级管理员
         if not self.is_super_admin(msg.user_id):
             await msg.reply(text="您没有权限执行此操作。")
             return
 
-        # 获取要删除的过滤词
+        # 确定操作类型和指令前缀
+        operation = "添加" if is_add else "删除"
+        command_prefix = "#add_clear_word" if is_add else "#remove_clear_word"
+        handler = ban_manager.add_clear_word if is_add else ban_manager.remove_clear_word
+
+        # 获取过滤词
         text = msg.raw_message.strip()
-        if text.startswith("#remove_clear_word"):
-            word = text[20:].strip()  # 去掉指令部分
-        else:
-            word = text.strip()
+        word = self.extract_command_arg(text, command_prefix)
 
         if not word:
-            await msg.reply(text="请提供要删除的过滤词。")
+            await msg.reply(text=f"请提供要{operation}的过滤词。")
             return
 
-        # 删除过滤词
-        result = ban_manager.remove_clear_word(word)
+        # 处理过滤词
+        result = handler(word)
         if result:
-            await msg.reply(text=f"已将过滤词 '{word}' 从列表中删除。")
+            await msg.reply(text=f"已将过滤词 '{word}' {operation}到列表中。" if is_add 
+                              else f"已将过滤词 '{word}' 从列表中{operation}。")
         else:
-            await msg.reply(text=f"过滤词 '{word}' 不在列表中。")
+            await msg.reply(text=f"过滤词 '{word}' 已在列表中。" if is_add 
+                              else f"过滤词 '{word}' 不在列表中。")
 
-    async def handle_list_blocked_words(self, msg: BaseMessage, ban_manager, admins_list):
+    async def handle_list_blocked_words(self, msg: BaseMessage, ban_manager):
         """处理查看过滤词列表"""
-        # 检查是否为管理员或超级管理员
-        if not self.is_admin(msg.user_id, admins_list):
+        # 检查是否为超级管理员
+        if not self.is_super_admin(msg.user_id):
             await msg.reply(text="您没有权限执行此操作。")
-            return
-
-        # 检查是否被ban
-        if ban_manager.is_banned(msg):
-            await msg.reply(text="您或您所在的群组已被禁止使用此功能。")
             return
 
         # 获取过滤词列表
@@ -236,88 +225,61 @@ class ChatUtils:
 
     async def handle_add_admin(self, msg: BaseMessage, admins_list):
         """处理添加管理员（仅限超级管理员）"""
+        await self.handle_admin(msg, admins_list, is_add=True)
+
+    async def handle_remove_admin(self, msg: BaseMessage, admins_list):
+        """处理删除管理员（仅限超级管理员）"""
+        await self.handle_admin(msg, admins_list, is_add=False)
+
+    async def handle_admin(self, msg: BaseMessage, admins_list, is_add=True):
+        """处理添加/删除管理员的通用方法"""
         # 检查是否为超级管理员
         if not self.is_super_admin(msg.user_id):
-            await msg.reply(text="您没有权限执行此操作，仅超级管理员可以添加管理员。")
+            operation = "添加" if is_add else "删除"
+            await msg.reply(text=f"您没有权限执行此操作，仅超级管理员可以{operation}管理员。")
             return
 
-        if self.ban_manager.is_banned(msg):
-            await msg.reply(text="您或您所在的群组已被禁止使用此功能。")
-            return
+        # 确定操作类型和指令前缀
+        operation = "添加" if is_add else "删除"
+        command_prefix = "#add_admin" if is_add else "#remove_admin"
 
-        # 获取要添加的管理员QQ号
+        # 获取管理员QQ号
         text = msg.raw_message.strip()
-        if text.startswith("#add_admin"):
-            admin_id = text[10:].strip()  # 去掉指令部分
-        else:
-            admin_id = text.strip()
+        admin_id = self.extract_command_arg(text, command_prefix)
 
         if not admin_id:
-            await msg.reply(text="请提供要添加的管理员QQ号。")
+            await msg.reply(text=f"请提供要{operation}的管理员QQ号。")
             return
 
         if not admin_id.isdigit():
             await msg.reply(text="管理员QQ号必须为数字。")
             return
 
-        # 检查不能将超级管理员添加为普通管理员
-        if admin_id == bot_config.root:
+        # 检查特殊操作限制
+        if is_add and admin_id == bot_config.root:
             await msg.reply(text="超级管理员无需添加到管理员列表。")
             return
+        elif not is_add and admin_id == bot_config.root:
+            await msg.reply(text="无法删除超级管理员。")
+            return
 
-        # 添加管理员
+        # 处理管理员列表
         data = self.config_manager.load_data()
         
         if 'admins' not in data:
             data['admins'] = []
             
-        if admin_id not in data['admins']:
+        is_admin_exists = admin_id in data['admins']
+        
+        if is_add and not is_admin_exists:
+            # 添加管理员
             data['admins'].append(admin_id)
             self.config_manager.save_data(data)
             # 更新传入的admins_list
             admins_list.append(admin_id) if admin_id not in admins_list else None
             await msg.reply(text=f"已将用户 {admin_id} 添加为管理员。")
-        else:
-            await msg.reply(text=f"用户 {admin_id} 已是管理员。")
-
-    async def handle_remove_admin(self, msg: BaseMessage, admins_list):
-        """处理删除管理员（仅限超级管理员）"""
-        # 检查是否为超级管理员
-        if not self.is_super_admin(msg.user_id):
-            await msg.reply(text="您没有权限执行此操作，仅超级管理员可以删除管理员。")
-            return
-
-        if self.ban_manager.is_banned(msg):
-            await msg.reply(text="您或您所在的群组已被禁止使用此功能。")
-            return
-
-        # 获取要删除的管理员QQ号
-        text = msg.raw_message.strip()
-        if text.startswith("#remove_admin"):
-            admin_id = text[13:].strip()  # 去掉指令部分
-        else:
-            admin_id = text.strip()
-
-        if not admin_id:
-            await msg.reply(text="请提供要删除的管理员QQ号。")
-            return
-
-        if not admin_id.isdigit():
-            await msg.reply(text="管理员QQ号必须为数字。")
-            return
-
-        # 检查不能删除超级管理员
-        if admin_id == bot_config.root:
-            await msg.reply(text="无法删除超级管理员。")
-            return
-
-        # 删除管理员
-        data = self.config_manager.load_data()
-        
-        if 'admins' not in data:
-            data['admins'] = []
-            
-        if admin_id in data['admins']:
+        elif not is_add and is_admin_exists:
+            # 删除管理员
             data['admins'].remove(admin_id)
             self.config_manager.save_data(data)
             # 更新传入的admins_list
@@ -325,17 +287,14 @@ class ChatUtils:
                 admins_list.remove(admin_id)
             await msg.reply(text=f"已将用户 {admin_id} 从管理员列表中删除。")
         else:
-            await msg.reply(text=f"用户 {admin_id} 不是管理员。")
+            # 管理员已存在或不存在的情况
+            await msg.reply(text=f"用户 {admin_id} {'已是管理员' if is_add else '不是管理员'}。")
 
-    async def handle_list_admins(self, msg: BaseMessage, admins_list):
+    async def handle_list_admins(self, msg: BaseMessage):
         """处理查看管理员列表"""
-        # 检查是否为管理员或超级管理员
-        if not self.is_admin(msg.user_id, admins_list):
+        # 检查是否为超级管理员
+        if not self.is_super_admin(msg.user_id):
             await msg.reply(text="您没有权限执行此操作。")
-            return
-
-        if self.ban_manager.is_banned(msg):
-            await msg.reply(text="您或您所在的群组已被禁止使用此功能。")
             return
 
         # 获取管理员列表

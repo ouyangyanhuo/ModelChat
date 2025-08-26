@@ -44,6 +44,8 @@ class ModelChat(BasePlugin):
         self.super_admin_only_commands = SUPER_ADMIN_ONLY_COMMANDS
         # 用于跟踪处于对话模式中的用户
         self.active_chats = set()
+        # 聊天模型配置
+        self.chat_model = {}
 
     def _check_active_chat(self, msg):
         """检查并处理用户处于持续对话模式的情况"""
@@ -57,13 +59,10 @@ class ModelChat(BasePlugin):
         print(f"{self.name} 插件已加载")
         print(f"插件版本: {self.version}")
         # 读取配置文件
-        config_path = os.path.join(os.path.dirname(__file__), 'config.yml')
-        with open(config_path, 'r', encoding='utf-8') as f:
-            self.chat_model = yaml.safe_load(f)
+        with open(config_path, 'r', encoding='utf-8') as config_file:
+            self.chat_model = yaml.safe_load(config_file)
             
         # 从data.json加载admins配置
-        config_manager = ConfigManager(os.path.dirname(__file__))
-        data_config = config_manager.load_data()
         self.chat_model['admins'] = data_config.get('admins', [])
             
         # 注册指令
@@ -139,7 +138,7 @@ class ModelChat(BasePlugin):
             self.active_chats.add(msg.user_id)
             print(f"用户 {msg.user_id} 已进入对话模式，当前对话用户: {self.active_chats}")
         # 加载用户历史记录
-        history = chat_model_instance._get_user_history(msg.user_id)
+        history = chat_model_instance.get_user_history(msg.user_id)
         if history:
             reply = "已加载之前的对话记录，现在您可以开始对话了！"
         else:
@@ -250,10 +249,7 @@ class ModelChat(BasePlugin):
 
         # 获取新的系统提示词
         text = msg.raw_message.strip()
-        if text.startswith("#system_prompt"):
-            new_prompt = text[14:].strip()  # 去掉指令部分
-        else:
-            new_prompt = text.strip()
+        new_prompt = chat_utils.extract_command_arg(text, "#system_prompt")
 
         if not new_prompt:
             # 如果没有提供新的提示词，则显示当前提示词
@@ -341,7 +337,7 @@ class ModelChat(BasePlugin):
         if self._check_active_chat(msg):
             return
 
-        await chat_utils.handle_list_blocked_words(msg, ban_manager, self.chat_model.get('admins', []))
+        await chat_utils.handle_list_blocked_words(msg, ban_manager)
 
     async def add_admin(self, msg: GroupMessage):
         """添加管理员（仅限超级管理员）"""
@@ -365,4 +361,4 @@ class ModelChat(BasePlugin):
         if self._check_active_chat(msg):
             return
 
-        await chat_utils.handle_list_admins(msg, self.chat_model.get('admins', []))
+        await chat_utils.handle_list_admins(msg)
