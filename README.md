@@ -7,15 +7,11 @@
 - 图像识别大模型需要调用支持图像识别的模型，可以分开调用 图像识别 和 文本对话 的API
 - 支持标准化 MCP 服务器，如 [12306-mcp
 ](https://www.modelscope.cn/mcp/servers/@Joooook/12306-mcp)，但建议不要过多使用，使用 MCP 功能会多次调用 API，TOKENS 消耗速度略快
+
 ## 开始使用
-指令：
-- `#chat [对话内容]`     对话
-- `#start_chat`         开启持续对话
-- `#stop_chat`          结束持续对话
-- `#clear chat_history` 清除对话记录
-- `#ban_chat group <groupID>`||`#ban_chat user <userID>`||`#ban_chat word <message>` 添加违禁词 或 封禁用户、群聊
-- `#ban_remove group <groupID>`||`#ban_remove user <userID>`||`#ban_remove word <message>` 删除违禁词 或 解封用户、群聊
-- `聊天菜单`            显示菜单
+使用 `聊天菜单` 指令，可以获取所有指令，当配置为 Nacatbot 管理员时，会被认为是超级管理。
+
+管理员、超级管理员会自动加载其专属的指令项目
 
 注意：使用持续会话时会拒绝该用户除结束指令外的所有指令请求
 

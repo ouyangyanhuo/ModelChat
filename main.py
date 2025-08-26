@@ -114,7 +114,6 @@ class ModelChat(BasePlugin):
             # 生成回复
             reply = await chat_utils.generate_response(msg, chat_model_instance, processed_input)
 
-            # 回复消息
             await msg.reply(text=reply)
 
     async def start_chat(self, msg: BaseMessage):
@@ -183,6 +182,10 @@ class ModelChat(BasePlugin):
 
         # 生成回复
         reply = await chat_utils.generate_response(msg, chat_model_instance, processed_input)
+
+        # 确保回复不是None
+        if reply is None:
+            reply = "抱歉，我没有理解您的意思。"
 
         # 回复消息
         await msg.reply(text=reply)

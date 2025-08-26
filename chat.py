@@ -28,12 +28,10 @@ class BaseChatModel:
         for char in cleanup_chars:
             text = text.replace(char, "")
 
-        # 移除think标签及其内容（深度思考内容）
-        text = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL)
-
         # 清理多余的空白行
         text = re.sub(r'\n\s*\n', '\n', text)
 
+        return text.strip()
     def _load_history(self):
         """加载历史记录"""
         try:
@@ -93,7 +91,9 @@ class BaseChatModel:
             # 如果是图片消息，将用户输入标记为"图片"
             user_content = "[用户发送了一张图片]" if is_image else user_input
             self._update_user_history(msg.user_id, {"role": "user", "content": user_content})
-            self._update_user_history(msg.user_id, {"role": "assistant", "content": reply})
+            # 确保回复内容不为空再保存
+            if reply:
+                self._update_user_history(msg.user_id, {"role": "assistant", "content": reply})
 
     def _build_vision_messages(self, image_data: str, prompt: str = "请描述这张图片"):
         """构建图像识别消息列表"""
@@ -129,8 +129,6 @@ class BaseChatModel:
         error_str = str(error)
         if "401" in error_str or "Unauthorized" in error_str:
             return "模型API认证失败，请检查配置文件"
-        elif "400" in error_str:
-            return "模型服务 400 错误，请求参数错误，请检查大模型是否具备 MCP 功能"
         elif "500" in error_str:
             return "模型服务 500 错误，服务器内部错误，请检查云端大模型是否具备 MCP 功能"
         elif "502" in error_str:
@@ -304,9 +302,13 @@ class ChatModelLangchain(BaseChatModel):
                 history = self._get_user_history(msg.user_id)
                 for item in history:
                     if item["role"] == "user":
-                        messages.append(HumanMessage(content=item["content"]))
+                        # 确保用户消息内容有效
+                        if item.get("content"):
+                            messages.append(HumanMessage(content=item["content"]))
                     elif item["role"] == "assistant":
-                        messages.append(AIMessage(content=item["content"]))
+                        # 确保助手消息内容有效
+                        if item.get("content"):
+                            messages.append(AIMessage(content=item["content"]))
                     # system message 会在 call_model 中添加
 
             # 添加当前用户输入
@@ -354,7 +356,13 @@ class ChatModel(BaseChatModel):
 
         if user_id:
             history = self._get_user_history(user_id)
-            messages.extend(history)
+            # 过滤掉无效的历史记录
+            for item in history:
+                if item["role"] == "assistant" and not item.get("content"):
+                    continue
+                if item["role"] == "user" and not item.get("content"):
+                    continue
+                messages.append(item)
 
         # 添加当前用户输入
         messages.append({"role": "user", "content": user_input})

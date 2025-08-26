@@ -151,13 +151,17 @@ class ChatUtils:
             if hasattr(msg, 'message') and isinstance(msg.message, list):
                 for segment in msg.message:
                     if isinstance(segment, dict) and segment.get("type") == "image":
-                        return user_input
+                        return user_input if user_input is not None else "抱歉，我无法处理这张图片。"
 
             # 否则使用普通模型处理
             reply = await chat_model_instance.useModel(msg, user_input)
+            
+            # 确保回复不是None
+            if reply is None:
+                reply = "抱歉，我没有理解您的意思。"
 
         except Exception as e:
-            reply = f"{str(e)}"
+            reply = f"抱歉，处理您的请求时出现了错误: {str(e)}"
 
         return reply
 
