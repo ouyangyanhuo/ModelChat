@@ -1,5 +1,5 @@
 from ncatbot.plugin import BasePlugin, CompatibleEnrollment
-from ncatbot.core import BaseMessage, GroupMessage
+from ncatbot.core import BaseMessage, GroupMessage, PrivateMessage
 from ncatbot.utils import config as bot_config
 from .chat import ChatModel, ChatModelLangchain
 from .utils import ChatUtils, SystemPromptManager, ConfigManager
@@ -33,7 +33,7 @@ ban_manager = BanManager(plugin_dir)  # 创建 BanManager 实例
 
 class ModelChat(BasePlugin):
     name = "ModelChat"
-    version = "2.1.0"
+    version = "2.2.0"
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -363,3 +363,20 @@ class ModelChat(BasePlugin):
             return
 
         await chat_utils.handle_list_admins(msg)
+
+    async def export_data_and_config(self, msg: PrivateMessage):
+        """导出数据与配置"""
+        # 检查是否处于持续对话模式中
+        if self._check_active_chat(msg):
+            return
+
+        if not chat_utils.is_super_admin(msg.user_id):
+            await msg.reply(text="您没有权限执行此操作。")
+            return
+
+        if not config.get("enable_export", True):
+            await msg.reply(text="请先开启导出功能")
+            return
+
+        await self.api.post_private_file(user_id=msg.user_id, file = f"{plugin_dir}/data.json")
+        await self.api.post_private_file(user_id=msg.user_id, file = f"{plugin_dir}/config.yml")

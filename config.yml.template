@@ -28,3 +28,6 @@ enable_continuous_session: true
 # 是否启用 MCP 系统
 # 启用后本地模型兼容性较差，需要配置 mcp_config.json 文件
 enable_mcp: false
+
+# 是否启用导出功能（高危险行为）
+enable_export: false

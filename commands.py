@@ -1,6 +1,6 @@
 # 指令配置文件
 # 仅超级管理员可执行的指令
-SUPER_ADMIN_ONLY_COMMANDS = ["Add Admin", "Remove Admin", "System Prompt", "Add Clear Word", "Remove Clear Word","List Admins","List Clear Words"]
+SUPER_ADMIN_ONLY_COMMANDS = ["Add Admin", "Remove Admin", "System Prompt", "Add Clear Word", "Remove Clear Word","List Admins","List Clear Words","Export Database and Config"]
 # 普通用户指令
 USER_COMMANDS = [
     {
@@ -104,5 +104,12 @@ ADMIN_COMMANDS = [
         "handler": "list_admins",
         "description": "查看管理员列表",
         "examples": ["#list_admins"]
-    }
+    },
+    {
+        "name": "Export Database and Config",
+        "prefix": "#export_dc",
+        "handler": "export_data_and_config",
+        "description": "导出数据&配置文件",
+        "examples": ["#export_dc"]
+    },
 ]
