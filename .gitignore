@@ -1,6 +1,8 @@
 /__pycache__
 /web/__pycache__
 /cache
+/web/password.json
+/web/static/css/font-awesome.css
 config.yml
 mcp_config.json
 chat_langchain.py

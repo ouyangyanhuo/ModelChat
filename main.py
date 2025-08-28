@@ -98,7 +98,7 @@ class ModelChat(BasePlugin):
                 prefix=""
             )
             
-        # 启动WebUI（如果配置中启用）
+        # 启动WebUI（配置中启用）
         if self.chat_model.get('enable_webui', False):
             self.start_webui()
 

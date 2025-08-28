@@ -1,0 +1,97 @@
+body {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    transition: background 0.3s ease;
+}
+
+.dark-mode {
+    background: linear-gradient(135deg, #1a2a4f 0%, #2d1b40 100%);
+}
+
+.card {
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    animation: slideUp 0.5s ease-out;
+    transition: background-color 0.3s ease;
+}
+
+.dark-mode .card {
+    background: #1f2937;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.input-field {
+    border-radius: 12px;
+    padding: 14px;
+    transition: all 0.3s;
+    border: 2px solid #e5e7eb;
+}
+
+.dark-mode .input-field {
+    border: 2px solid #4b5563;
+    background-color: #111827;
+    color: #f9fafb;
+}
+
+.input-field:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+.auth-button {
+    border-radius: 12px;
+    padding: 14px;
+    transition: all 0.3s;
+    background: linear-gradient(to right, #3b82f6, #60a5fa);
+    color: white;
+    font-weight: 600;
+}
+
+.dark-mode .auth-button {
+    background: linear-gradient(to right, #2563eb, #3b82f6);
+}
+
+.auth-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+.dark-mode .auth-button:hover {
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.2);
+}
+
+.error-message {
+    border-radius: 8px;
+    animation: shake 0.5s;
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
+}
+
+/* 夜间模式切换动画 */
+.theme-toggle {
+    transition: transform 0.5s ease;
+}
+
+.theme-toggle:hover {
+    transform: rotate(50deg);
+}
