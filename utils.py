@@ -28,30 +28,29 @@ class ConfigManager:
             
     def load_data(self):
         """加载JSON数据文件"""
+        default_data = {
+            "banned_groups": [],
+            "banned_users": [],
+            "blocked_words": [],
+            "system_prompt": "你是一个AI助手",
+            "cleanup_chars": [],
+            "admins": []
+        }
+        
         try:
             if os.path.exists(self.data_path):
                 with open(self.data_path, 'r', encoding='utf-8') as f:
-                    return json.load(f)
+                    data = json.load(f)
+                    # 确保所有必要的键都存在
+                    for key in default_data:
+                        if key not in data:
+                            data[key] = default_data[key]
+                    return data
             else:
-                # 如果文件不存在，返回默认数据结构
-                return {
-                    "banned_groups": [],
-                    "banned_users": [],
-                    "blocked_words": [],
-                    "system_prompt": "你是一个AI助手",
-                    "cleanup_chars": [],
-                    "admins": []
-                }
+                return default_data
         except Exception as e:
             print(f"加载数据文件出错: {e}")
-            return {
-                "banned_groups": [],
-                "banned_users": [],
-                "blocked_words": [],
-                "system_prompt": "你是一个AI助手",
-                "cleanup_chars": [],
-                "admins": []
-            }
+            return default_data
 
     def save_data(self, data):
         """保存数据到JSON文件"""
@@ -85,9 +84,10 @@ class SystemPromptManager:
 class ChatUtils:
     """聊天工具类"""
     def __init__(self, plugin_dir):
+        """初始化工具类"""
         # 局部导入
         from .ban import BanManager
-        """初始化工具类"""
+        
         self.plugin_dir = plugin_dir
         self.config_manager = ConfigManager(plugin_dir)
         self.ban_manager = BanManager(plugin_dir)
@@ -148,10 +148,11 @@ class ChatUtils:
         """生成模型回复"""
         try:
             # 如果user_input已经是视觉模型的回复，则直接返回
-            if hasattr(msg, 'message') and isinstance(msg.message, list):
-                for segment in msg.message:
-                    if isinstance(segment, dict) and segment.get("type") == "image":
-                        return user_input if user_input is not None else "抱歉，我无法处理这张图片。"
+            if (hasattr(msg, 'message') and 
+                isinstance(msg.message, list) and 
+                any(isinstance(segment, dict) and segment.get("type") == "image" 
+                    for segment in msg.message)):
+                return user_input if user_input is not None else "抱歉，我无法处理这张图片。"
 
             # 否则使用普通模型处理
             reply = await chat_model_instance.useModel(msg, user_input)
@@ -280,7 +281,8 @@ class ChatUtils:
             data['admins'].append(admin_id)
             self.config_manager.save_data(data)
             # 更新传入的admins_list
-            admins_list.append(admin_id) if admin_id not in admins_list else None
+            if admin_id not in admins_list:
+                admins_list.append(admin_id)
             await msg.reply(text=f"已将用户 {admin_id} 添加为管理员。")
         elif not is_add and is_admin_exists:
             # 删除管理员
