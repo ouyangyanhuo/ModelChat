@@ -278,6 +278,21 @@ class ModelChatWebUI:
             except Exception as e:
                 return jsonify({'error': str(e)}), 500
                 
+        @self.app.route('/api/session/<int:user_id>', methods=['DELETE'])
+        def delete_session(user_id):
+            if not session.get('authenticated'):
+                return jsonify({'error': '未授权访问'}), 401
+            
+            try:
+                # 删除指定用户的历史记录
+                result = self.api.delete_user_history(user_id)
+                if result:
+                    return jsonify({'success': True})
+                else:
+                    return jsonify({'error': '删除失败'}), 500
+            except Exception as e:
+                return jsonify({'error': str(e)}), 500
+
         @self.app.route('/api/current_user')
         def current_user():
             if not session.get('authenticated'):
@@ -285,6 +300,19 @@ class ModelChatWebUI:
             
             return jsonify({'username': session.get('username', 'unknown')})
             
+        @self.app.route('/api/sessions', methods=['GET'])
+        def get_sessions():
+            if not session.get('authenticated'):
+                return jsonify({'error': '未授权访问'}), 401
+            
+            try:
+                # 只获取10000-10099范围内的用户ID
+                allowed_user_ids = list(range(10000, 10100))
+                sessions = self.api.get_history_sessions(allowed_user_ids)
+                return jsonify({'sessions': sessions})
+            except Exception as e:
+                return jsonify({'error': str(e)}), 500
+
         @self.app.route('/api/change_password', methods=['POST'])
         def change_password():
             if not session.get('authenticated'):

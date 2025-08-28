@@ -60,6 +60,61 @@ class ConfigManager:
         except Exception as e:
             print(f"保存数据文件出错: {e}")
 
+    def load_history_sessions(self, allowed_user_ids=None):
+        """从历史记录文件中加载会话数据"""
+        sessions = {}
+        history_file = os.path.join(self.plugin_dir, 'cache', 'history.json')
+        
+        try:
+            if os.path.exists(history_file):
+                with open(history_file, 'r', encoding='utf-8') as f:
+                    history_data = json.load(f)
+            else:
+                history_data = {}
+            
+            # 确定要处理的用户ID列表
+            user_ids_to_process = []
+            if allowed_user_ids is not None:
+                # 只处理允许的用户ID
+                user_ids_to_process = [str(uid) for uid in allowed_user_ids]
+            else:
+                # 处理所有用户ID
+                user_ids_to_process = list(history_data.keys())
+            
+            # 处理用户ID列表
+            for user_id_str in user_ids_to_process:
+                if user_id_str in history_data and len(history_data[user_id_str]) > 0:
+                    # 如果有历史记录，创建会话
+                    messages = []
+                    for msg in history_data[user_id_str]:
+                        messages.append({
+                            'content': msg['content'],
+                            'sender': 'user' if msg['role'] == 'user' else 'bot',
+                            'timestamp': ''  # 我们没有时间戳信息
+                        })
+                    
+                    # 生成会话名称（使用第一条消息）
+                    session_name = "历史会话"
+                    if len(messages) > 0:
+                        first_user_msg = next((m for m in messages if m['sender'] == 'user'), None)
+                        if first_user_msg:
+                            session_name = first_user_msg['content'][:15] + "..." if len(first_user_msg['content']) > 15 else first_user_msg['content']
+                    
+                    # 转换用户ID为整数
+                    user_id = int(user_id_str)
+                    sessions[f"session_{user_id}"] = {
+                        'id': f"session_{user_id}",
+                        'name': session_name,
+                        'messages': messages,
+                        'userId': user_id,
+                        'createdAt': ''  # 我们没有创建时间信息
+                    }
+            
+            return sessions
+        except Exception as e:
+            print(f"加载历史会话数据时出错: {e}")
+            return sessions
+
 
 class SystemPromptManager:
     """系统提示词管理器"""

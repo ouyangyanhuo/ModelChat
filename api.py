@@ -1,7 +1,7 @@
 from .chat import ChatModel, ChatModelLangchain
 from .utils import ChatUtils, ConfigManager, SystemPromptManager
 import os
-import yaml
+import yaml, json
 
 class ModelChatAPI:
     """
@@ -102,6 +102,35 @@ class ModelChatAPI:
         """
         return self.chat_model_instance.clear_user_history(user_id)
     
+    def delete_user_history(self, user_id):
+        """
+        删除指定用户的历史记录
+        
+        Args:
+            user_id (int): 用户ID
+            
+        Returns:
+            bool: 是否删除成功
+        """
+        try:
+            history_file = os.path.join(self.plugin_dir, 'cache', 'history.json')
+            if os.path.exists(history_file):
+                with open(history_file, 'r', encoding='utf-8') as f:
+                    history_data = json.load(f)
+                
+                user_id_str = str(user_id)
+                if user_id_str in history_data:
+                    del history_data[user_id_str]
+                    
+                    with open(history_file, 'w', encoding='utf-8') as f:
+                        json.dump(history_data, f, ensure_ascii=False, indent=2)
+                    
+                    return True
+            return True
+        except Exception as e:
+            print(f"删除用户历史记录时出错: {e}")
+            return False
+
     def get_system_prompt(self):
         """
         获取当前系统提示词
@@ -126,6 +155,18 @@ class ModelChatAPI:
         system_prompt_manager.set_system_prompt(prompt)
         return True
     
+    def get_history_sessions(self, allowed_user_ids=None):
+        """
+        获取历史会话数据
+        
+        Args:
+            allowed_user_ids (list, optional): 允许读取的用户ID列表，如果为None则不限制
+            
+        Returns:
+            dict: 历史会话数据
+        """
+        return self.config_manager.load_history_sessions(allowed_user_ids)
+
     def is_admin(self, user_id):
         """
         检查用户是否为管理员

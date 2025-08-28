@@ -8,98 +8,78 @@
     <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/font-awesome/7.0.0/css/all.min.css">
 </head>
 <body class="bg-gray-100">
-    <div class="container mx-auto max-w-4xl h-screen flex flex-col">
-        <header class="card p-4 mb-4 mt-4 mx-4 flex justify-between items-center">
-            <div class="flex items-center">
-                <i class="fas fa-robot text-2xl mr-3 text-blue-500"></i>
-                <h1 class="text-2xl font-bold">ModelChat WebUI</h1>
-            </div>
-            <div class="flex items-center space-x-4">
-                <button id="theme-toggle" class="text-xl">
-                    <i class="fas fa-moon"></i>
+    <div class="flex h-screen">
+        <!-- 会话侧边栏 -->
+        <div class="w-64 bg-white flex flex-col border-r border-gray-200 dark:bg-gray-800 dark:border-gray-700">
+            <div class="p-4">
+                <button id="new-session-btn" class="w-full bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded flex items-center justify-center dark:bg-blue-600 dark:hover:bg-blue-700">
+                    <i class="fas fa-plus mr-2"></i>
+                    新建会话
                 </button>
-                <div class="text-sm flex items-center">
-                    <i class="fas fa-user mr-2"></i>
-                    <span id="current-username">admin</span>
-                </div>
-                <button id="change-password-btn" class="text-blue-500 hover:text-blue-700 text-sm">
-                    <i class="fas fa-key mr-1"></i> 修改密码
-                </button>
-                <a href="/logout" class="text-blue-500 hover:text-blue-700 flex items-center">
-                    <i class="fas fa-sign-out-alt mr-1"></i> 登出
-                </a>
             </div>
-        </header>
-        
-        <div id="first-login-notification" class="mx-4 mb-4 hidden">
-            <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded">
-                <div class="flex">
-                    <div class="flex-shrink-0">
-                        <i class="fas fa-exclamation-circle text-yellow-400"></i>
-                    </div>
-                    <div class="ml-3">
-                        <p class="text-sm text-yellow-700">
-                            检测到您是首次登录，建议您修改默认密码以提高安全性。
-                            <button id="change-password-first-login" class="ml-2 underline text-yellow-800 hover:text-yellow-900">
-                                立即修改密码
-                            </button>
-                        </p>
-                    </div>
+            <div class="flex-1 overflow-y-auto session-list" id="session-list">
+                <!-- 会话列表将在这里动态生成 -->
+            </div>
+            <div class="p-4 border-t border-gray-200 dark:border-gray-700">
+                <div class="flex items-center justify-between">
+                    <button id="theme-toggle" class="text-xl p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">
+                        <i class="fas fa-moon"></i>
+                    </button>
+                    <a href="/logout" class="text-gray-500 hover:text-gray-700 p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">
+                        <i class="fas fa-sign-out-alt"></i>
+                    </a>
                 </div>
             </div>
         </div>
 
-        <div class="flex-1 overflow-y-auto p-4 scrollbar-thin" id="chat-container">
-            <!-- 聊天记录将在这里显示 -->
-            <div class="chat-bubble bot-bubble">
-                <div class="flex items-center">
-                    <i class="fas fa-robot mr-2"></i>
-                    <span>欢迎使用ModelChat！请输入您的消息开始对话。</span>
+        <!-- 主聊天区域 -->
+        <div class="flex-1 flex flex-col">
+            <div class="flex-1 overflow-y-auto p-4 scrollbar-thin" id="chat-container">
+                <!-- 聊天记录将在这里显示 -->
+                <div class="chat-bubble bot-bubble">
+                    <div class="flex items-center">
+                        <i class="fas fa-robot mr-2"></i>
+                        <span>欢迎使用ModelChat！请输入您的消息开始对话。</span>
+                    </div>
                 </div>
             </div>
-        </div>
-        
-        <div class="typing-indicator p-4" id="typing-indicator">
-            <div class="chat-bubble bot-bubble flex items-center">
-                <div class="flex space-x-1">
-                    <div class="w-2 h-2 bg-gray-400 rounded-full bounce"></div>
-                    <div class="w-2 h-2 bg-gray-400 rounded-full bounce" style="animation-delay: 0.2s"></div>
-                    <div class="w-2 h-2 bg-gray-400 rounded-full bounce" style="animation-delay: 0.4s"></div>
+
+            <div class="typing-indicator p-4" id="typing-indicator">
+                <div class="chat-bubble bot-bubble flex items-center">
+                    <div class="flex space-x-1">
+                        <div class="w-2 h-2 bg-gray-400 rounded-full bounce"></div>
+                        <div class="w-2 h-2 bg-gray-400 rounded-full bounce" style="animation-delay: 0.2s"></div>
+                        <div class="w-2 h-2 bg-gray-400 rounded-full bounce" style="animation-delay: 0.4s"></div>
+                    </div>
+                    <span class="ml-2">AI正在思考中...</span>
                 </div>
-                <span class="ml-2">AI正在思考中...</span>
             </div>
-        </div>
-        
-        <div class="card p-4 m-4 input-area">
-            <div class="flex items-center">
-                <div class="flex-1 mr-2">
-                    <input type="text"
-                           id="message-input"
-                           class="w-full border rounded-full p-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                           placeholder="输入消息... 按Enter发送"
-                           autocomplete="off">
-                </div>
-                <button id="send-button" 
-                        class="send-button flex items-center">
-                    <i class="fas fa-paper-plane mr-2"></i>
-                    <span>发送</span>
-                </button>
-            </div>
-            <div class="mt-3 flex justify-between items-center">
-                <div class="text-sm text-gray-500 flex items-center">
-                    <i class="fas fa-user mr-2"></i>
-                    <span>用户ID: <span id="user-id" class="font-mono">10001</span></span>
-                    <button id="change-user" class="ml-2 text-blue-500 hover:text-blue-700">
-                        <i class="fas fa-edit"></i>
+
+            <div class="bg-white p-4 border-t border-gray-200 dark:bg-gray-800 dark:border-gray-700">
+                <div class="flex items-center mb-3">
+                    <div class="flex-1 mr-2">
+                        <input type="text"
+                               id="message-input"
+                               class="w-full border rounded-full p-3 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                               placeholder="输入消息... 按Enter发送"
+                               autocomplete="off">
+                    </div>
+                    <button id="send-button"
+                            class="send-button flex items-center bg-blue-500 hover:bg-blue-600 text-white py-3 px-6 rounded-full dark:bg-blue-600 dark:hover:bg-blue-700">
+                        <i class="fas fa-paper-plane mr-2"></i>
+                        <span>发送</span>
                     </button>
                 </div>
-                <div class="flex space-x-2">
-                    <button id="clear-history" class="text-sm bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1 rounded-full flex items-center">
-                        <i class="fas fa-trash mr-1"></i> 清除历史
-                    </button>
-                    <button id="view-prompt" class="text-sm bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1 rounded-full flex items-center">
-                        <i class="fas fa-sticky-note mr-1"></i> 查看提示词
-                    </button>
+                <div class="flex justify-between items-center">
+                    <div></div> <!-- 左侧留空 -->
+                    <div class="flex space-x-2">
+                        <button id="clear-history" class="text-sm bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1 rounded-full flex items-center dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200">
+                            <i class="fas fa-trash mr-1"></i> 清除历史
+                        </button>
+                        <button id="view-prompt" class="text-sm bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1 rounded-full flex items-center dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200">
+                            <i class="fas fa-sticky-note mr-1"></i> 查看提示词
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -107,66 +87,14 @@
 
     <!-- 查看提示词模态框 -->
     <div id="prompt-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
-        <div class="card p-6 w-11/12 max-w-2xl max-h-96 overflow-y-auto">
-            <div class="flex justify-between items-center mb-4">
+        <div class="bg-white rounded-lg w-11/12 max-w-2xl max-h-96 overflow-y-auto dark:bg-gray-800">
+            <div class="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700">
                 <h2 class="text-xl font-bold">系统提示词</h2>
-                <button id="close-prompt-modal" class="text-gray-500 hover:text-gray-700">
+                <button id="close-prompt-modal" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
-            <div id="prompt-content" class="whitespace-pre-wrap bg-gray-100 p-4 rounded"></div>
-        </div>
-    </div>
-
-    <!-- 修改密码模态框 -->
-    <div id="password-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
-        <div class="card p-6 w-11/12 max-w-md">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-xl font-bold">修改密码</h2>
-                <button id="close-password-modal" class="text-gray-500 hover:text-gray-700">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <form id="change-password-form">
-                <div class="mb-4">
-                    <label class="block text-gray-700 text-sm font-bold mb-2" for="old-password">
-                        旧密码
-                    </label>
-                    <input type="password"
-                           id="old-password"
-                           class="w-full border rounded p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                           required>
-                </div>
-                <div class="mb-4">
-                    <label class="block text-gray-700 text-sm font-bold mb-2" for="new-password">
-                        新密码
-                    </label>
-                    <input type="password"
-                           id="new-password"
-                           class="w-full border rounded p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                           required>
-                </div>
-                <div class="mb-4">
-                    <label class="block text-gray-700 text-sm font-bold mb-2" for="confirm-password">
-                        确认新密码
-                    </label>
-                    <input type="password"
-                           id="confirm-password"
-                           class="w-full border rounded p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                           required>
-                </div>
-                <div class="flex justify-end space-x-2">
-                    <button type="button"
-                            id="cancel-password-change"
-                            class="px-4 py-2 text-gray-600 hover:text-gray-800">
-                        取消
-                    </button>
-                    <button type="submit"
-                            class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
-                        修改密码
-                    </button>
-                </div>
-            </form>
+            <div id="prompt-content" class="whitespace-pre-wrap bg-gray-100 p-4 rounded dark:bg-gray-700"></div>
         </div>
     </div>
 
