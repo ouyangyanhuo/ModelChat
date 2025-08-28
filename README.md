@@ -8,6 +8,8 @@
 - 支持标准化 MCP 服务器，如 [12306-mcp
 ](https://www.modelscope.cn/mcp/servers/@Joooook/12306-mcp)，但建议不要过多使用，使用 MCP 功能会多次调用 API，TOKENS 消耗速度略快
 
+## 注意：
+当前正在 main 分支进行 WebUI 开发，如果要下载插件请前往 [release](https://github.com/ouyangyanhuo/ModelChat/releases) 下载
 ## 开始使用
 
 使用 `聊天菜单` 指令，可以获取所有指令，当配置为 Nacatbot 管理员时，会被认为是超级管理。
