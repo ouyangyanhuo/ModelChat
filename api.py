@@ -1,5 +1,5 @@
 from .chat import ChatModel, ChatModelLangchain
-from .utils import ChatUtils, ConfigManager
+from .utils import ChatUtils, ConfigManager, SystemPromptManager
 import os
 import yaml
 

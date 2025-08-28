@@ -5,7 +5,9 @@ from .chat import ChatModel, ChatModelLangchain
 from .utils import ChatUtils, SystemPromptManager, ConfigManager
 from .ban import BanManager
 from .commands import USER_COMMANDS, ADMIN_COMMANDS, SUPER_ADMIN_ONLY_COMMANDS
+from .webui import ModelChatWebUI
 import os,yaml
+import threading
 
 bot = CompatibleEnrollment  # 兼容回调函数注册器
 
@@ -46,6 +48,9 @@ class ModelChat(BasePlugin):
         self.active_chats = set()
         # 聊天模型配置
         self.chat_model = {}
+        # WebUI实例
+        self.webui = None
+        self.webui_thread = None
 
     def _check_active_chat(self, msg):
         """检查并处理用户处于持续对话模式的情况"""
@@ -92,6 +97,32 @@ class ModelChat(BasePlugin):
                 handler=self.active_chat_handler,
                 prefix=""
             )
+            
+        # 启动WebUI（如果配置中启用）
+        if self.chat_model.get('enable_webui', False):
+            self.start_webui()
+
+    def start_webui(self):
+        """启动WebUI"""
+        try:
+            self.webui = ModelChatWebUI(plugin_dir)
+            
+            # 在单独的线程中运行WebUI
+            self.webui_thread = threading.Thread(
+                target=self.webui.run,
+                kwargs={
+                    'host': self.chat_model.get('webui_host', '127.0.0.1'),
+                    'port': self.chat_model.get('webui_port', 5000),
+                    'debug': False,
+                    'open_browser': self.chat_model.get('webui_open_browser', True)
+                },
+                daemon=True
+            )
+            self.webui_thread.start()
+            print("ModelChat WebUI 已启动")
+        except Exception as e:
+            print(f"启动WebUI时出错: {e}")
+
     async def active_chat_handler(self, msg: BaseMessage):
         """处理处于对话模式中的用户消息"""
         # 检查用户是否在对话模式中
