@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
-from .api import ModelChatAPI
+from plugins.ModelChat.api import ModelChatAPI  # 修改导入路径
 import os
 import threading
 import webbrowser
@@ -12,8 +12,8 @@ class ModelChatWebUI:
         self.plugin_dir = plugin_dir
         self.api = ModelChatAPI(plugin_dir)
         self.app = Flask(__name__, 
-                         template_folder=os.path.join(plugin_dir, 'templates'),
-                         static_folder=os.path.join(plugin_dir, 'static'))
+                         template_folder=os.path.join(plugin_dir, 'web', 'templates'),
+                         static_folder=os.path.join(plugin_dir, 'web', 'static'))
         # 生成随机密钥用于会话
         self.app.secret_key = secrets.token_hex(16)
         self._setup_routes()
@@ -115,7 +115,7 @@ class ModelChatWebUI:
                 return jsonify({'result': result})
             except Exception as e:
                 return jsonify({'error': str(e)}), 500
-
+                
         @self.app.route('/api/current_user')
         def current_user():
             if not session.get('authenticated'):

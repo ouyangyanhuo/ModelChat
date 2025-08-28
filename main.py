@@ -5,7 +5,7 @@ from .chat import ChatModel, ChatModelLangchain
 from .utils import ChatUtils, SystemPromptManager, ConfigManager
 from .ban import BanManager
 from .commands import USER_COMMANDS, ADMIN_COMMANDS, SUPER_ADMIN_ONLY_COMMANDS
-from .webui import ModelChatWebUI
+from .web.webui import ModelChatWebUI
 import os,yaml
 import threading
 
