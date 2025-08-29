@@ -11,27 +11,18 @@ import threading
 
 bot = CompatibleEnrollment  # 兼容回调函数注册器
 
-# 根据配置决定使用哪个模型类
+# 获取插件目录
 plugin_dir = os.path.dirname(__file__)
-config_path = os.path.join(plugin_dir, 'config.yml')
-with open(config_path, 'r', encoding='utf-8') as f:
-    config = yaml.safe_load(f)
-
-# 使用ConfigManager加载data.json中的配置
+# 使用 ConfigManager 类
 config_manager = ConfigManager(plugin_dir)
+# 加载文件配置
+config = config_manager.load_config_file()
+# 加载数据文件
 data_config = config_manager.load_data()
-
-# 检查是否启用MCP系统
-if config.get('enable_mcp', True):
-    chat_model_instance = ChatModelLangchain(plugin_dir)  # 使用Langchain实现
-    print("MCP 已启用")
-else:
-    chat_model_instance = ChatModel(plugin_dir)  # 使用原始实现（兼容性更好）
-    print("MCP 已禁用")
-
-chat_utils = ChatUtils(plugin_dir)  # 创建 ChatUtils 实例
-ban_manager = BanManager(plugin_dir)  # 创建 BanManager 实例
-
+# 创建 ChatUtils 实例
+chat_utils = ChatUtils(plugin_dir)
+# 创建 BanManager 实例
+ban_manager = BanManager(plugin_dir)  
 
 class ModelChat(BasePlugin):
     name = "ModelChat"
@@ -52,6 +43,13 @@ class ModelChat(BasePlugin):
         self.webui = None
         self.webui_thread = None
 
+        # 检查是否启用MCP系统
+        if self.chat_model.get('enable_mcp', True):
+            self.chat_model_instance = ChatModelLangchain(plugin_dir)  # 使用Langchain实现
+            print("MCP 已启用")
+        else:
+            self.chat_model_instance = ChatModel(plugin_dir)  # 使用原始实现（兼容性更好）
+            print("MCP 已禁用")
     def _check_active_chat(self, msg):
         """检查并处理用户处于持续对话模式的情况"""
         if msg.user_id in self.active_chats:
@@ -63,10 +61,10 @@ class ModelChat(BasePlugin):
         # 插件加载提示
         print(f"{self.name} 插件已加载")
         print(f"插件版本: {self.version}")
+
         # 读取配置文件
-        with open(config_path, 'r', encoding='utf-8') as config_file:
-            self.chat_model = yaml.safe_load(config_file)
-            
+        self.chat_model = config_manager.load_config_file()
+
         # 从data.json加载admins配置
         self.chat_model['admins'] = data_config.get('admins', [])
             
@@ -90,7 +88,7 @@ class ModelChat(BasePlugin):
                 prefix=cmd["prefix"]
             )
 
-        if chat_model_instance.config['enable_continuous_session']:
+        if self.chat_model_instance.config['enable_continuous_session']:
             # 注册持续对话模式
             self.register_user_func(
                 name="ActiveChatHandler",
@@ -138,18 +136,21 @@ class ModelChat(BasePlugin):
 
             print("正在向LLM发送聊天请求[持续模式]")
             # 处理图像输入
-            processed_input = await chat_utils.process_image_input(msg, chat_model_instance, user_input)
+            processed_input = await chat_utils.process_image_input(msg, self.chat_model_instance, user_input)
             if processed_input is None:  # 图片包含违禁词
                 return
 
             # 生成回复
-            reply = await chat_utils.generate_response(msg, chat_model_instance, processed_input)
+            reply = await chat_utils.generate_response(msg, self.chat_model_instance, processed_input)
 
             await msg.reply(text=reply)
 
     async def start_chat(self, msg: BaseMessage):
         """开始持续对话模式"""
-        if not chat_model_instance.config['enable_continuous_session']:
+        # 重新加载配置以确保获取最新状态
+        current_config = config_manager.load_config_file()
+        
+        if not current_config.get('enable_continuous_session', True):
             await msg.reply(text="持续对话功能已禁用")
             return
 
@@ -168,7 +169,7 @@ class ModelChat(BasePlugin):
             self.active_chats.add(msg.user_id)
             print(f"用户 {msg.user_id} 已进入对话模式，当前对话用户: {self.active_chats}")
         # 加载用户历史记录
-        history = chat_model_instance.get_user_history(msg.user_id)
+        history = self.chat_model_instance.get_user_history(msg.user_id)
         if history:
             reply = "已加载之前的对话记录，现在您可以开始对话了！"
         else:
@@ -178,7 +179,10 @@ class ModelChat(BasePlugin):
 
     async def stop_chat(self, msg: BaseMessage):
         """结束持续对话模式"""
-        if not chat_model_instance.config['enable_continuous_session']:
+        # 重新加载配置以确保获取最新状态
+        current_config = config_manager.load_config_file()
+        
+        if not current_config.get('enable_continuous_session', True):
             await msg.reply(text="持续对话功能已禁用")
             return
 
@@ -207,12 +211,12 @@ class ModelChat(BasePlugin):
 
         print("正在向LLM发送聊天请求")
         # 处理图像输入
-        processed_input = await chat_utils.process_image_input(msg, chat_model_instance, user_input)
+        processed_input = await chat_utils.process_image_input(msg, self.chat_model_instance, user_input)
         if processed_input is None:  # 图片包含违禁词
             return
 
         # 生成回复
-        reply = await chat_utils.generate_response(msg, chat_model_instance, processed_input)
+        reply = await chat_utils.generate_response(msg, self.chat_model_instance, processed_input)
 
         # 确保回复不是None
         if reply is None:
@@ -405,7 +409,9 @@ class ModelChat(BasePlugin):
             await msg.reply(text="您没有权限执行此操作。")
             return
 
-        if not config.get("enable_export", True):
+        # 重新加载配置以确保获取最新状态
+        current_config = config_manager.load_config_file()
+        if not current_config.get("enable_export", True):
             await msg.reply(text="请先开启导出功能")
             return
 

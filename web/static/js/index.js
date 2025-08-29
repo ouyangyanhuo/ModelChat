@@ -19,12 +19,20 @@ const chatContainer = document.getElementById('chat-container');
 const messageInput = document.getElementById('message-input');
 const sendButton = document.getElementById('send-button');
 const typingIndicator = document.getElementById('typing-indicator');
-const clearHistoryButton = document.getElementById('clear-history');
-const viewPromptButton = document.getElementById('view-prompt');
 const themeToggleButton = document.getElementById('theme-toggle');
 const promptModal = document.getElementById('prompt-modal');
 const closePromptModal = document.getElementById('close-prompt-modal');
 const promptContent = document.getElementById('prompt-content');
+
+// 设置相关元素
+const settingsBtn = document.getElementById('settings-btn');
+const settingsMenu = document.getElementById('settings-menu');
+const viewPromptBtn = document.getElementById('view-prompt-btn');
+const changePasswordBtn = document.getElementById('change-password-btn');
+const passwordModal = document.getElementById('password-modal');
+const closePasswordModal = document.getElementById('close-password-modal');
+const cancelPasswordChange = document.getElementById('cancel-password-change');
+const changePasswordForm = document.getElementById('change-password-form');
 
 // 会话管理元素
 const newSessionBtn = document.getElementById('new-session-btn');
@@ -35,27 +43,15 @@ let darkMode = localStorage.getItem('darkMode') === 'true';
 // 应用主题
 function applyTheme() {
     if (darkMode) {
-        // 添加过渡效果类
-        document.body.classList.add('bg-transition');
-        setTimeout(() => {
-            document.body.classList.add('dark-mode');
+        document.body.classList.add('dark-mode');
+        if (themeToggleButton) {
             themeToggleButton.innerHTML = '<i class="fas fa-sun"></i>';
-            // 移除过渡效果类
-            setTimeout(() => {
-                document.body.classList.remove('bg-transition');
-            }, 500);
-        }, 10);
+        }
     } else {
-        // 添加过渡效果类
-        document.body.classList.add('bg-transition');
-        setTimeout(() => {
-            document.body.classList.remove('dark-mode');
+        document.body.classList.remove('dark-mode');
+        if (themeToggleButton) {
             themeToggleButton.innerHTML = '<i class="fas fa-moon"></i>';
-            // 移除过渡效果类
-            setTimeout(() => {
-                document.body.classList.remove('bg-transition');
-            }, 500);
-        }, 10);
+        }
     }
 }
 
@@ -66,8 +62,22 @@ function toggleTheme() {
     applyTheme();
 }
 
-// 应用保存的主题
-applyTheme();
+// 切换设置菜单显示/隐藏
+if (settingsBtn) {
+    settingsBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        settingsMenu.classList.toggle('hidden');
+    });
+}
+
+// 点击其他地方隐藏设置菜单
+document.addEventListener('click', function(e) {
+    if (settingsMenu && !settingsMenu.classList.contains('hidden') 
+        && settingsBtn && !settingsBtn.contains(e.target) 
+        && settingsMenu && !settingsMenu.contains(e.target)) {
+        settingsMenu.classList.add('hidden');
+    }
+});
 
 // 加载历史会话
 function loadHistorySessions() {
@@ -101,9 +111,11 @@ function loadHistorySessions() {
 }
 
 // 新建会话
-newSessionBtn.addEventListener('click', function() {
-    createNewSession();
-});
+if (newSessionBtn) {
+    newSessionBtn.addEventListener('click', function() {
+        createNewSession();
+    });
+}
 
 // 创建新会话
 function createNewSession() {
@@ -458,29 +470,251 @@ function closePromptModalFunc() {
     promptModal.classList.add('hidden');
 }
 
-// 事件监听器
-sendButton.addEventListener('click', sendMessage);
-
-messageInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
-        sendMessage();
+// 修改密码
+async function changePassword(e) {
+    e.preventDefault();
+    
+    const oldPassword = document.getElementById('old-password').value;
+    const newPassword = document.getElementById('new-password').value;
+    const confirmPassword = document.getElementById('confirm-password').value;
+    
+    if (newPassword !== confirmPassword) {
+        alert('新密码和确认密码不一致');
+        return;
     }
-});
+    
+    try {
+        const response = await fetch('/api/change_password', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                old_password: oldPassword,
+                new_password: newPassword
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            alert('密码修改成功');
+            passwordModal.classList.add('hidden');
+            changePasswordForm.reset();
+        } else {
+            alert(`错误: ${data.error}`);
+        }
+    } catch (error) {
+        alert(`网络错误: ${error.message}`);
+    }
+}
 
-clearHistoryButton.addEventListener('click', clearHistory);
-viewPromptButton.addEventListener('click', viewSystemPrompt);
-themeToggleButton.addEventListener('click', toggleTheme);
-closePromptModal.addEventListener('click', closePromptModalFunc);
+// 添加更多设置相关元素
+const moreSettingsBtn = document.getElementById('more-settings-btn');
+const moreSettingsModal = document.getElementById('more-settings-modal');
+const closeMoreSettingsModal = document.getElementById('close-more-settings-modal');
+const settingsForm = document.getElementById('settings-form');
+const cancelSettingsBtn = document.getElementById('cancel-settings');
+
+// 更多设置按钮
+if (moreSettingsBtn) {
+    moreSettingsBtn.addEventListener('click', function() {
+        // 隐藏设置菜单
+        if (settingsMenu) {
+            settingsMenu.classList.add('hidden');
+        }
+        // 显示更多设置模态框
+        loadConfigAndShowSettings();
+    });
+}
+
+// 关闭更多设置模态框
+if (closeMoreSettingsModal) {
+    closeMoreSettingsModal.addEventListener('click', function() {
+        moreSettingsModal.classList.add('hidden');
+    });
+}
+
+// 取消设置按钮
+if (cancelSettingsBtn) {
+    cancelSettingsBtn.addEventListener('click', function() {
+        moreSettingsModal.classList.add('hidden');
+    });
+}
 
 // 点击模态框外部关闭
-promptModal.addEventListener('click', (e) => {
-    if (e.target === promptModal) {
-        closePromptModalFunc();
+if (moreSettingsModal) {
+    moreSettingsModal.addEventListener('click', function(e) {
+        if (e.target === moreSettingsModal) {
+            moreSettingsModal.classList.add('hidden');
+        }
+    });
+}
+
+// 加载配置并显示设置模态框
+async function loadConfigAndShowSettings() {
+    try {
+        const response = await fetch('/api/config');
+        const data = await response.json();
+        
+        if (response.ok) {
+            const config = data.config;
+            
+            // 填充表单字段
+            document.getElementById('api_key').value = config.api_key || '';
+            document.getElementById('base_url').value = config.base_url || '';
+            document.getElementById('model').value = config.model || '';
+            
+            document.getElementById('vision_api_key').value = config.vision_api_key || '';
+            document.getElementById('vision_base_url').value = config.vision_base_url || '';
+            document.getElementById('vision_model').value = config.vision_model || '';
+            
+            document.getElementById('memory_length').value = config.memory_length || '';
+            document.getElementById('model_temperature').value = config.model_temperature || '';
+            
+            document.getElementById('enable_vision').checked = config.enable_vision || false;
+            document.getElementById('enable_mcp').checked = config.enable_mcp || false;
+            document.getElementById('enable_export').checked = config.enable_export || false;
+            document.getElementById('enable_webui').checked = config.enable_webui || false;
+            
+            // 显示模态框
+            moreSettingsModal.classList.remove('hidden');
+        } else {
+            alert('加载配置失败: ' + (data.error || '未知错误'));
+        }
+    } catch (error) {
+        alert('加载配置时发生网络错误: ' + error.message);
     }
-});
+}
+
+// 保存设置
+if (settingsForm) {
+    settingsForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        // 收集表单数据
+        const updates = {};
+        
+        // 收集所有输入字段的值
+        const fields = [
+            'api_key', 'base_url', 'model',
+            'vision_api_key', 'vision_base_url', 'vision_model',
+            'memory_length', 'model_temperature',
+            'enable_vision', 'enable_mcp', 'enable_export', 'enable_webui'
+        ];
+        
+        fields.forEach(field => {
+            const element = document.getElementById(field);
+            if (element) {
+                if (element.type === 'checkbox') {
+                    updates[field] = element.checked;
+                } else if (element.type === 'number') {
+                    const value = element.value;
+                    updates[field] = value ? (field.includes('temperature') ? parseFloat(value) : parseInt(value)) : value;
+                } else {
+                    updates[field] = element.value;
+                }
+            }
+        });
+        
+        try {
+            const response = await fetch('/api/config', {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({updates: updates})
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok) {
+                alert('设置已保存并生效');
+                moreSettingsModal.classList.add('hidden');
+                // 重新加载页面以应用新配置
+                location.reload();
+            } else {
+                alert('保存设置失败: ' + (data.error || '未知错误'));
+            }
+        } catch (error) {
+            alert('保存设置时发生网络错误: ' + error.message);
+        }
+    });
+}
+
+// 事件监听器
+if (sendButton) {
+    sendButton.addEventListener('click', sendMessage);
+}
+
+if (messageInput) {
+    messageInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            sendMessage();
+        }
+    });
+}
+
+if (viewPromptBtn) {
+    viewPromptBtn.addEventListener('click', viewSystemPrompt);
+}
+
+if (changePasswordBtn) {
+    changePasswordBtn.addEventListener('click', function() {
+        passwordModal.classList.remove('hidden');
+    });
+}
+
+if (closePromptModal) {
+    closePromptModal.addEventListener('click', closePromptModalFunc);
+}
+
+if (closePasswordModal) {
+    closePasswordModal.addEventListener('click', function() {
+        passwordModal.classList.add('hidden');
+    });
+}
+
+if (cancelPasswordChange) {
+    cancelPasswordChange.addEventListener('click', function() {
+        passwordModal.classList.add('hidden');
+    });
+}
+
+if (changePasswordForm) {
+    changePasswordForm.addEventListener('submit', changePassword);
+}
+
+// 点击模态框外部关闭
+if (promptModal) {
+    promptModal.addEventListener('click', (e) => {
+        if (e.target === promptModal) {
+            closePromptModalFunc();
+        }
+    });
+}
+
+if (passwordModal) {
+    passwordModal.addEventListener('click', (e) => {
+        if (e.target === passwordModal) {
+            passwordModal.classList.add('hidden');
+        }
+    });
+}
 
 // 页面加载完成后聚焦输入框并加载历史会话
 window.addEventListener('load', () => {
-    messageInput.focus();
+    // 确保主题在页面加载时正确应用
+    applyTheme();
+    
+    if (messageInput) {
+        messageInput.focus();
+    }
+    
     loadHistorySessions();
 });
+
+// 添加主题切换按钮的事件监听器
+if (themeToggleButton) {
+    themeToggleButton.addEventListener('click', toggleTheme);
+}

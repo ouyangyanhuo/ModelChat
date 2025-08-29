@@ -306,10 +306,57 @@ class ModelChatWebUI:
                 return jsonify({'error': '未授权访问'}), 401
             
             try:
-                # 只获取10000-10099范围内的用户ID
+                # 只获取 10000 - 10099 范围内的用户ID
                 allowed_user_ids = list(range(10000, 10100))
                 sessions = self.api.get_history_sessions(allowed_user_ids)
                 return jsonify({'sessions': sessions})
+            except Exception as e:
+                return jsonify({'error': str(e)}), 500
+
+        @self.app.route('/api/config', methods=['GET'])
+        def get_config():
+            if not session.get('authenticated'):
+                return jsonify({'error': '未授权访问'}), 401
+            
+            try:
+                config = self.api.get_config()
+                return jsonify({'config': config})
+            except Exception as e:
+                return jsonify({'error': str(e)}), 500
+
+        @self.app.route('/api/config', methods=['POST'])
+        def save_config():
+            if not session.get('authenticated'):
+                return jsonify({'error': '未授权访问'}), 401
+            
+            try:
+                data = request.json
+                config_data = data.get('config', {})
+                
+                result = self.api.save_config(config_data)
+                if result:
+                    return jsonify({'success': True})
+                else:
+                    return jsonify({'error': '保存配置失败'}), 500
+            except Exception as e:
+                return jsonify({'error': str(e)}), 500
+
+        @self.app.route('/api/config', methods=['PATCH'])
+        def update_config():
+            if not session.get('authenticated'):
+                return jsonify({'error': '未授权访问'}), 401
+            
+            try:
+                data = request.json
+                updates = data.get('updates', {})
+                
+                result = self.api.update_config(updates)
+                if result:
+                    # 更新配置后重新加载所有配置
+                    self.api.reload_all_configs()
+                    return jsonify({'success': True})
+                else:
+                    return jsonify({'error': '更新配置失败'}), 500
             except Exception as e:
                 return jsonify({'error': str(e)}), 500
 

@@ -20,14 +20,38 @@
             <div class="flex-1 overflow-y-auto session-list" id="session-list">
                 <!-- 会话列表将在这里动态生成 -->
             </div>
+
+            <!-- 设置项目列表 -->
+            <div id="settings-menu" class="hidden border-t border-gray-200 dark:border-gray-700 absolute bottom-16 left-2 bg-white dark:bg-gray-800 rounded-lg shadow-lg z-10">
+                <div class="p-2">
+                    <button id="view-prompt-btn" class="w-full text-left p-3 rounded hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center">
+                        <i class="fas fa-sticky-note mr-3 text-gray-500 dark:text-gray-400"></i>
+                        <span class="text-gray-700 dark:text-gray-300">查看系统提示词</span>
+                    </button>
+                    <button id="change-password-btn" class="w-full text-left p-3 rounded hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center">
+                        <i class="fas fa-key mr-3 text-gray-500 dark:text-gray-400"></i>
+                        <span class="text-gray-700 dark:text-gray-300">修改密码</span>
+                    </button>
+                    <button id="more-settings-btn" class="w-full text-left p-3 rounded hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center">
+                        <i class="fas fa-cog mr-3 text-gray-500 dark:text-gray-400"></i>
+                        <span class="text-gray-700 dark:text-gray-300">更多设置</span>
+                    </button>
+                    <a href="/logout" class="block w-full text-left p-3 rounded hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center">
+                        <i class="fas fa-sign-out-alt mr-3 text-gray-500 dark:text-gray-400"></i>
+                        <span class="text-gray-700 dark:text-gray-300">退出登录</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- 底部按钮 -->
             <div class="p-4 border-t border-gray-200 dark:border-gray-700">
                 <div class="flex items-center justify-between">
+                    <button id="settings-btn" class="text-xl p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">
+                        <i class="fas fa-cog"></i>
+                    </button>
                     <button id="theme-toggle" class="text-xl p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">
                         <i class="fas fa-moon"></i>
                     </button>
-                    <a href="/logout" class="text-gray-500 hover:text-gray-700 p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">
-                        <i class="fas fa-sign-out-alt"></i>
-                    </a>
                 </div>
             </div>
         </div>
@@ -45,13 +69,12 @@
             </div>
 
             <div class="typing-indicator p-4" id="typing-indicator">
-                <div class="chat-bubble bot-bubble flex items-center">
+                <div class="chat-bubble bot-bubble flex items-center py-3 px-4">
                     <div class="flex space-x-1">
                         <div class="w-2 h-2 bg-gray-400 rounded-full bounce"></div>
                         <div class="w-2 h-2 bg-gray-400 rounded-full bounce" style="animation-delay: 0.2s"></div>
                         <div class="w-2 h-2 bg-gray-400 rounded-full bounce" style="animation-delay: 0.4s"></div>
                     </div>
-                    <span class="ml-2">AI正在思考中...</span>
                 </div>
             </div>
 
@@ -73,12 +96,7 @@
                 <div class="flex justify-between items-center">
                     <div></div> <!-- 左侧留空 -->
                     <div class="flex space-x-2">
-                        <button id="clear-history" class="text-sm bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1 rounded-full flex items-center dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200">
-                            <i class="fas fa-trash mr-1"></i> 清除历史
-                        </button>
-                        <button id="view-prompt" class="text-sm bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1 rounded-full flex items-center dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200">
-                            <i class="fas fa-sticky-note mr-1"></i> 查看提示词
-                        </button>
+                        <!-- 只保留两个按钮 -->
                     </div>
                 </div>
             </div>
@@ -95,6 +113,198 @@
                 </button>
             </div>
             <div id="prompt-content" class="whitespace-pre-wrap bg-gray-100 p-4 rounded dark:bg-gray-700"></div>
+        </div>
+    </div>
+
+    <!-- 修改密码模态框 -->
+    <div id="password-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
+        <div class="bg-white dark:bg-gray-800 rounded-lg w-11/12 max-w-md">
+            <div class="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700">
+                <h2 class="text-xl font-bold">修改密码</h2>
+                <button id="close-password-modal" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="change-password-form" class="p-4">
+                <div class="mb-4">
+                    <label class="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2" for="old-password">
+                        旧密码
+                    </label>
+                    <input type="password"
+                           id="old-password"
+                           class="w-full border rounded p-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                           required>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2" for="new-password">
+                        新密码
+                    </label>
+                    <input type="password"
+                           id="new-password"
+                           class="w-full border rounded p-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                           required>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2" for="confirm-password">
+                        确认新密码
+                    </label>
+                    <input type="password"
+                           id="confirm-password"
+                           class="w-full border rounded p-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                           required>
+                </div>
+                <div class="flex justify-end space-x-2">
+                    <button type="button"
+                            id="cancel-password-change"
+                            class="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100">
+                        取消
+                    </button>
+                    <button type="submit"
+                            class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700">
+                        修改密码
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 更多设置模态框 -->
+    <div id="more-settings-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-20">
+        <div class="bg-white rounded-lg w-11/12 max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center p-4 border-b border-gray-200">
+                <h2 class="text-xl font-bold text-gray-800">更多设置</h2>
+                <button id="close-more-settings-modal" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="settings-form" class="p-4">
+                <div class="mb-6">
+                    <h3 class="text-lg font-semibold mb-3 text-gray-800 border-b border-gray-200 pb-2">聊天 API 配置</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-gray-700 text-sm font-medium mb-2" for="api_key">
+                                API Key
+                            </label>
+                            <input type="password" id="api_key" name="api_key"
+                                   class="w-full border rounded-lg p-2 focus:outline-none"
+                                   placeholder="输入 API Key">
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 text-sm font-medium mb-2" for="base_url">
+                                Base URL
+                            </label>
+                            <input type="text" id="base_url" name="base_url"
+                                   class="w-full border rounded-lg p-2 focus:outline-none"
+                                   placeholder="输入 Base URL">
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block text-gray-700 text-sm font-medium mb-2" for="model">
+                                模型
+                            </label>
+                            <input type="text" id="model" name="model"
+                                   class="w-full border rounded-lg p-2 focus:outline-none"
+                                   placeholder="输入模型名称">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-6">
+                    <h3 class="text-lg font-semibold mb-3 text-gray-800 border-b border-gray-200 pb-2">图像识别 API 配置</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-gray-700 text-sm font-medium mb-2" for="vision_api_key">
+                                Vision API Key
+                            </label>
+                            <input type="password" id="vision_api_key" name="vision_api_key"
+                                   class="w-full border rounded-lg p-2 focus:outline-none"
+                                   placeholder="输入 Vision API Key">
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 text-sm font-medium mb-2" for="vision_base_url">
+                                Vision Base URL
+                            </label>
+                            <input type="text" id="vision_base_url" name="vision_base_url"
+                                   class="w-full border rounded-lg p-2 focus:outline-none"
+                                   placeholder="输入 Vision Base URL">
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block text-gray-700 text-sm font-medium mb-2" for="vision_model">
+                                Vision 模型
+                            </label>
+                            <input type="text" id="vision_model" name="vision_model"
+                                   class="w-full border rounded-lg p-2 focus:outline-none"
+                                   placeholder="输入 Vision 模型名称">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-6">
+                    <h3 class="text-lg font-semibold mb-3 text-gray-800 border-b border-gray-200 pb-2">其他设置</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-gray-700 text-sm font-medium mb-2" for="memory_length">
+                                模型记忆长度
+                            </label>
+                            <input type="number" id="memory_length" name="memory_length"
+                                   class="w-full border rounded-lg p-2 focus:outline-none"
+                                   placeholder="输入记忆长度">
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 text-sm font-medium mb-2" for="model_temperature">
+                                模型 Temperature (0-1)
+                            </label>
+                            <input type="number" id="model_temperature" name="model_temperature" step="0.1" min="0" max="1"
+                                   class="w-full border rounded-lg p-2 focus:outline-none"
+                                   placeholder="输入 Temperature 值">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-6">
+                    <h3 class="text-lg font-semibold mb-3 text-gray-800 border-b border-gray-200 pb-2">功能开关</h3>
+                    <div class="space-y-3">
+                        <div class="flex items-center">
+                            <input type="checkbox" id="enable_vision" name="enable_vision"
+                                   class="rounded">
+                            <label for="enable_vision" class="ml-3 text-gray-700">
+                                开启图像识别功能
+                            </label>
+                        </div>
+                        <div class="flex items-center">
+                            <input type="checkbox" id="enable_mcp" name="enable_mcp"
+                                   class="rounded">
+                            <label for="enable_mcp" class="ml-3 text-gray-700">
+                                启用 MCP (本地模型兼容性较差)
+                            </label>
+                        </div>
+                        <div class="flex items-center">
+                            <input type="checkbox" id="enable_export" name="enable_export"
+                                   class="rounded">
+                            <label for="enable_export" class="ml-3 text-gray-700">
+                                启用导出功能
+                            </label>
+                        </div>
+                        <div class="flex items-center">
+                            <input type="checkbox" id="enable_webui" name="enable_webui"
+                                   class="rounded">
+                            <label for="enable_webui" class="ml-3 text-gray-700">
+                                启用 WebUI
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex justify-end space-x-3 mt-6">
+                    <button type="button" id="cancel-settings"
+                            class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg">
+                        取消
+                    </button>
+                    <button type="submit"
+                            class="px-4 py-2 text-white rounded-lg">
+                        保存设置
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 

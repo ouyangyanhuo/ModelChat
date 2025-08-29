@@ -17,15 +17,60 @@ class ConfigManager:
         """获取数据文件路径"""
         return self.data_path
         
-    def load_config(self):
-        """加载YAML配置文件"""
+    def load_config_file(self):
+        """加载配置文件"""
         try:
             with open(self.config_path, 'r', encoding='utf-8') as f:
                 return yaml.safe_load(f)
         except Exception as e:
             print(f"加载配置文件出错: {e}")
             return {}
+
+    def update_config_file(self, updates):
+        """更新配置文件中的特定键值"""
+        try:
+            # 读取配置文件内容
+            with open(self.config_path, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
             
+            # 更新指定的键值
+            updated_lines = []
+            for line in lines:
+                updated_line = line
+                # 检查每一行是否包含需要更新的键
+                for key, value in updates.items():
+                    # 匹配键的正则表达式（考虑可能的空格）
+                    import re
+                    pattern = r'^(\s*)' + re.escape(key) + r'(\s*):(.*?)(#.*)?$'
+                    match = re.match(pattern, line)
+                    if match:
+                        # 提取前导空格和注释
+                        leading_spaces = match.group(1)
+                        trailing_comment = match.group(4) if match.group(4) else ""
+                        
+                        # 根据值的类型格式化
+                        if isinstance(value, bool):
+                            formatted_value = str(value).lower()
+                        elif isinstance(value, (int, float)):
+                            formatted_value = str(value)
+                        else:
+                            formatted_value = f'"{value}"'
+                        
+                        # 构造新行
+                        updated_line = f"{leading_spaces}{key}: {formatted_value}{trailing_comment}\n"
+                        break
+                
+                updated_lines.append(updated_line)
+            
+            # 写回文件
+            with open(self.config_path, 'w', encoding='utf-8') as f:
+                f.writelines(updated_lines)
+                
+            return True
+        except Exception as e:
+            print(f"更新配置文件出错: {e}")
+            return False
+
     def load_data(self):
         """加载JSON数据文件"""
         default_data = {
@@ -115,6 +160,72 @@ class ConfigManager:
             print(f"加载历史会话数据时出错: {e}")
             return sessions
 
+    def reload_config(self):
+        """重新加载配置文件"""
+        try:
+            self.config = self.load_config_file()
+        except Exception as e:
+            print(f"重新加载配置文件出错: {e}")
+
+    def reload_all_configs(self, chat_model_instance):
+        """重新加载所有配置并更新相关实例"""
+        try:
+            # 重新加载主配置文件
+            config = self.load_config_file()
+            
+            # 更新chat_model_instance的配置
+            chat_model_instance.config = config
+            
+            # 重新初始化客户端（如果存在）
+            # 如果是ChatModelLangchain实例
+            if hasattr(chat_model_instance, 'client') and 'langchain' in str(type(chat_model_instance.client)).lower():
+                try:
+                    from langchain_openai import ChatOpenAI
+                    chat_model_instance.client = ChatOpenAI(
+                        model_name=config["model"],
+                        temperature=config.get("model_temperature", 0.6),
+                        openai_api_key=config["api_key"],
+                        openai_api_base=config["base_url"],
+                    )
+                except Exception as e:
+                    print(f"重新初始化Langchain ChatOpenAI客户端出错: {e}")
+            
+            # 如果是ChatModel实例
+            elif hasattr(chat_model_instance, 'client'):
+                try:
+                    from openai import OpenAI
+                    chat_model_instance.client = OpenAI(
+                        api_key=config['api_key'],
+                        base_url=config['base_url']
+                    )
+                except Exception as e:
+                    print(f"重新初始化OpenAI客户端出错: {e}")
+            
+            # 重新初始化视觉模型客户端（如果存在）
+            if hasattr(chat_model_instance, 'vision_client') and 'langchain' in str(type(chat_model_instance.vision_client)).lower():
+                try:
+                    from langchain_openai import ChatOpenAI
+                    chat_model_instance.vision_client = ChatOpenAI(
+                        model_name=config.get("vision_model"),
+                        openai_api_key=config.get("vision_api_key", config["api_key"]),
+                        openai_api_base=config.get("vision_base_url"),
+                    )
+                except Exception as e:
+                    print(f"重新初始化视觉Langchain客户端出错: {e}")
+            elif hasattr(chat_model_instance, 'vision_client'):
+                try:
+                    from openai import OpenAI
+                    chat_model_instance.vision_client = OpenAI(
+                        api_key=config.get('vision_api_key', config['api_key']),
+                        base_url=config.get('vision_base_url')
+                    )
+                except Exception as e:
+                    print(f"重新初始化视觉OpenAI客户端出错: {e}")
+            
+            return True
+        except Exception as e:
+            print(f"重新加载所有配置出错: {e}")
+            return False
 
 class SystemPromptManager:
     """系统提示词管理器"""

@@ -8,118 +8,15 @@ body.dark-mode {
     color: #f9fafb;
 }
 
-.chat-bubble {
-    border-radius: 18px;
-    padding: 12px 16px;
-    margin: 8px 0;
-    max-width: 80%;
-    word-wrap: break-word;
-    animation: fadeIn 0.3s ease-in;
-    transition: background-color 0.3s ease, color 0.3s ease;
+/* 侧边栏样式 */
+.w-64 {
+    background-color: #ffffff;
+    border-color: #e5e7eb;
 }
 
-.user-bubble {
-    background-color: #3b82f6;
-    color: white;
-    margin-left: auto;
-    border-bottom-right-radius: 4px;
-}
-
-.bot-bubble {
-    background-color: #e5e7eb;
-    color: #1f2937;
-    margin-right: auto;
-    border-bottom-left-radius: 4px;
-}
-
-.dark-mode .bot-bubble {
-    background-color: #374151;
-    color: #f9fafb;
-}
-
-.typing-indicator {
-    display: none;
-    margin-left: auto;
-    margin-right: auto;
-}
-
-.send-button {
-    border-radius: 24px;
-    padding: 10px 24px;
-    transition: all 0.2s;
-    background-color: #3b82f6;
-    color: white;
-}
-
-.send-button:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-}
-
-.dark-mode .send-button {
-    background-color: #2563eb;
-}
-
-.dark-mode .send-button:hover {
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes bounce {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-5px); }
-}
-
-.bounce {
-    animation: bounce 1s infinite;
-}
-
-.scrollbar-thin::-webkit-scrollbar {
-    width: 6px;
-}
-
-.scrollbar-thin::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-.scrollbar-thin::-webkit-scrollbar-thumb {
-    background-color: #9ca3af;
-    border-radius: 3px;
-}
-
-.dark-mode .scrollbar-thin::-webkit-scrollbar-thumb {
-    background-color: #4b5563;
-}
-
-/* 夜间模式切换动画 */
-.theme-toggle {
-    transition: transform 0.5s ease;
-}
-
-.theme-toggle:hover {
-    transform: rotate(50deg);
-}
-
-/* 添加一个渐变背景层，用于夜间模式切换动画 */
-.bg-transition::after {
-    content: "";
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: radial-gradient(circle, rgba(31, 41, 55, 0.8) 0%, rgba(17, 24, 39, 0.8) 100%);
-    z-index: -1;
-    opacity: 0;
-    transition: opacity 0.5s ease;
-}
-
-.dark-mode.bg-transition::after {
-    opacity: 1;
+.dark-mode .w-64 {
+    background-color: #1f2937;
+    border-color: #374151;
 }
 
 /* 会话管理样式 */
@@ -160,6 +57,11 @@ body.dark-mode {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    color: #111827;
+}
+
+.dark-mode .session-item .session-title {
+    color: #f9fafb;
 }
 
 .session-item .session-preview {
@@ -197,6 +99,245 @@ body.dark-mode {
     background-color: #7f1d1d;
 }
 
+/* 底部按钮栏 */
+.border-t {
+    border-color: #e5e7eb;
+}
+
+.dark-mode .border-t {
+    border-color: #374151;
+}
+
+/* 消息输入区域 */
+.bg-white {
+    background-color: #ffffff;
+}
+
+.dark-mode .bg-white {
+    background-color: #1f2937;
+}
+
+.border-t {
+    border-color: #e5e7eb;
+}
+
+.dark-mode .border-t {
+    border-color: #374151;
+}
+
+/* 输入框 */
+#message-input {
+    background-color: #ffffff;
+    border-color: #e5e7eb;
+    color: #111827;
+}
+
+.dark-mode #message-input {
+    background-color: #1f2937;
+    border-color: #4b5563;
+    color: #f9fafb;
+}
+
+/* 发送按钮 */
+.send-button {
+    border-radius: 24px;
+    padding: 10px 24px;
+    transition: all 0.2s;
+    background-color: #3b82f6;
+    color: white;
+}
+
+.send-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.dark-mode .send-button {
+    background-color: #2563eb;
+}
+
+.dark-mode .send-button:hover {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+}
+
+/* 设置菜单 */
+#settings-menu {
+    background-color: #ffffff;
+    border-color: #e5e7eb;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    opacity: 0;
+    transform: translateY(10px) scale(0.95);
+    transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s ease;
+    visibility: hidden;
+}
+
+#settings-menu:not(.hidden) {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    visibility: visible;
+}
+
+.dark-mode #settings-menu {
+    background-color: #1f2937;
+    border-color: #374151;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.2);
+}
+
+/* 设置菜单项 */
+#settings-menu button,
+#settings-menu a {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 0.75rem 1rem;
+    transition: all 0.2s ease;
+    border-radius: 0.375rem;
+    margin-bottom: 0.25rem;
+}
+
+#settings-menu button:hover,
+#settings-menu a:hover {
+    background-color: #f3f4f6;
+}
+
+.dark-mode #settings-menu button:hover,
+.dark-mode #settings-menu a:hover {
+    background-color: #374151;
+}
+
+#settings-menu .text-gray-700 {
+    color: #374151;
+}
+
+.dark-mode #settings-menu .text-gray-700 {
+    color: #f9fafb;
+}
+
+#settings-menu .text-gray-500 {
+    color: #6b7280;
+}
+
+.dark-mode #settings-menu .text-gray-500 {
+    color: #9ca3af;
+}
+
+/* 聊天泡泡 */
+.chat-bubble {
+    border-radius: 18px;
+    padding: 12px 16px;
+    margin: 8px 0;
+    word-wrap: break-word;
+    animation: fadeIn 0.3s ease-in;
+    transition: background-color 0.3s ease, color 0.3s ease;
+    max-width: 60%;
+    width: fit-content;
+}
+
+.user-bubble {
+    background-color: #3b82f6;
+    color: white;
+    margin-left: auto;
+    border-bottom-right-radius: 4px;
+}
+
+.bot-bubble {
+    background-color: #e5e7eb;
+    color: #1f2937;
+    margin-right: auto;
+    border-bottom-left-radius: 4px;
+}
+
+.dark-mode .bot-bubble {
+    background-color: #374151;
+    color: #f9fafb;
+}
+
+/* 打字指示器样式 */
+.typing-indicator {
+    display: none;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.typing-indicator .chat-bubble {
+    min-width: 60px;
+}
+
+.typing-indicator .bot-bubble {
+    background-color: #e5e7eb;
+    color: #1f2937;
+    margin-right: auto;
+    border-bottom-left-radius: 4px;
+}
+
+.dark-mode .typing-indicator .bot-bubble {
+    background-color: #374151;
+    color: #f9fafb;
+}
+
+.typing-indicator .text-gray-600 {
+    color: #4b5563;
+}
+
+.dark-mode .typing-indicator .text-gray-300 {
+    color: #d1d5db;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-5px); }
+}
+
+.bounce {
+    animation: bounce 1s infinite;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: #9ca3af;
+    border-radius: 3px;
+}
+
+.dark-mode .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: #4b5563;
+}
+
+/* 底部按钮样式 */
+.p-2.rounded-full {
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.p-2.rounded-full:hover {
+    background-color: #f3f4f6;
+}
+
+.dark-mode .p-2.rounded-full:hover {
+    background-color: #374151;
+}
+
+/* 夜间模式切换动画 */
+.theme-toggle {
+    transition: transform 0.5s ease;
+    cursor: pointer;
+}
+
+.theme-toggle:hover {
+    transform: rotate(50deg);
+}
+
 /* 按钮样式 */
 .btn-primary {
     background-color: #3b82f6;
@@ -231,4 +372,230 @@ body.dark-mode {
 
 .dark-mode .btn-secondary:hover {
     background-color: #4b5563;
+}
+
+/* 修改密码模态框中的取消按钮适配夜间模式 */
+#password-modal .px-4.py-2.text-gray-600 {
+    color: #4b5563;
+}
+
+.dark-mode #password-modal .px-4.py-2.text-gray-600 {
+    color: #9ca3af;
+}
+
+.dark-mode #password-modal .px-4.py-2.text-gray-600:hover {
+    color: #f9fafb;
+}
+
+/* 表单按钮适配夜间模式 */
+#password-modal button[type="submit"] {
+    background-color: #3b82f6;
+    color: white;
+}
+
+.dark-mode #password-modal button[type="submit"] {
+    background-color: #2563eb;
+}
+
+.dark-mode #password-modal button[type="submit"]:hover {
+    background-color: #1d4ed8;
+}
+
+/* 表单输入框适配夜间模式 */
+#password-modal input {
+    background-color: #ffffff;
+    border-color: #d1d5db;
+    color: #111827;
+}
+
+.dark-mode #password-modal input {
+    background-color: #1f2937;
+    border-color: #4b5563;
+    color: #f9fafb;
+}
+
+.dark-mode #password-modal input:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+/* 模态框适配夜间模式 */
+#prompt-modal,
+#password-modal {
+    z-index: 100;
+}
+
+#prompt-modal .bg-white,
+#password-modal .bg-white {
+    background-color: #ffffff;
+}
+
+.dark-mode #prompt-modal .bg-white,
+.dark-mode #password-modal .bg-white {
+    background-color: #1f2937;
+}
+
+#prompt-modal .border-gray-200,
+#password-modal .border-gray-200 {
+    border-color: #e5e7eb;
+}
+
+.dark-mode #prompt-modal .border-gray-200,
+.dark-mode #password-modal .border-gray-200 {
+    border-color: #374151;
+}
+
+#prompt-modal .text-gray-500,
+#password-modal .text-gray-500 {
+    color: #6b7280;
+}
+
+.dark-mode #prompt-modal .text-gray-500,
+.dark-mode #password-modal .text-gray-500 {
+    color: #9ca3af;
+}
+
+#prompt-modal .text-gray-700,
+#password-modal .text-gray-700 {
+    color: #374151;
+}
+
+.dark-mode #prompt-modal .text-gray-700,
+.dark-mode #password-modal .text-gray-700 {
+    color: #f9fafb;
+}
+
+#prompt-modal .bg-gray-100,
+#password-modal .bg-gray-100 {
+    background-color: #f3f4f6;
+}
+
+.dark-mode #prompt-modal .bg-gray-100,
+.dark-mode #password-modal .bg-gray-100 {
+    background-color: #374151;
+}
+
+/* 更多设置模态框样式 */
+#more-settings-modal .bg-white {
+    background-color: #ffffff;
+}
+
+.dark-mode #more-settings-modal .bg-white {
+    background-color: #1f2937;
+}
+
+#more-settings-modal .border-gray-200 {
+    border-color: #e5e7eb;
+}
+
+.dark-mode #more-settings-modal .border-gray-200 {
+    border-color: #374151;
+}
+
+#more-settings-modal .border-gray-300 {
+    border-color: #d1d5db;
+}
+
+.dark-mode #more-settings-modal .border-gray-300 {
+    border-color: #4b5563;
+}
+
+#more-settings-modal .text-gray-800 {
+    color: #1f2937;
+}
+
+.dark-mode #more-settings-modal .text-gray-800 {
+    color: #f9fafb;
+}
+
+#more-settings-modal .text-gray-700 {
+    color: #374151;
+}
+
+.dark-mode #more-settings-modal .text-gray-700 {
+    color: #f9fafb;
+}
+
+#more-settings-modal .text-gray-500 {
+    color: #6b7280;
+}
+
+.dark-mode #more-settings-modal .text-gray-500 {
+    color: #9ca3af;
+}
+
+/* 表单输入框样式 */
+#more-settings-modal input {
+    background-color: #ffffff;
+    border-color: #d1d5db;
+    color: #111827;
+}
+
+#more-settings-modal input:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+.dark-mode #more-settings-modal input {
+    background-color: #1f2937;
+    border-color: #4b5563;
+    color: #f9fafb;
+}
+
+.dark-mode #more-settings-modal input:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+/* 复选框样式 */
+#more-settings-modal input[type="checkbox"] {
+    background-color: #ffffff;
+    border-color: #d1d5db;
+}
+
+.dark-mode #more-settings-modal input[type="checkbox"] {
+    background-color: #1f2937;
+    border-color: #4b5563;
+}
+
+/* 按钮样式 */
+#more-settings-modal .px-4.py-2.text-gray-700 {
+    color: #374151;
+}
+
+.dark-mode #more-settings-modal .px-4.py-2.text-gray-700 {
+    color: #d1d5db;
+}
+
+#more-settings-modal .hover\:bg-gray-100:hover {
+    background-color: #f3f4f6;
+}
+
+.dark-mode #more-settings-modal .hover\:bg-gray-100:hover {
+    background-color: #1f2937;
+}
+
+#more-settings-modal .dark\:hover\:bg-gray-700:hover {
+    background-color: #374151;
+}
+
+.dark-mode #more-settings-modal .dark\:hover\:bg-gray-700:hover {
+    background-color: #374151;
+}
+
+#more-settings-modal button[type="submit"] {
+    background-color: #3b82f6;
+    color: white;
+}
+
+#more-settings-modal button[type="submit"]:hover {
+    background-color: #2563eb;
+}
+
+.dark-mode #more-settings-modal button[type="submit"] {
+    background-color: #2563eb;
+}
+
+.dark-mode #more-settings-modal button[type="submit"]:hover {
+    background-color: #1d4ed8;
 }

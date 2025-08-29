@@ -155,6 +155,27 @@ class ModelChatAPI:
         system_prompt_manager.set_system_prompt(prompt)
         return True
     
+    def get_config(self):
+        """
+        获取当前配置
+        
+        Returns:
+            dict: 当前配置
+        """
+        return self.config_manager.load_config_file()
+
+    def update_config(self, updates):
+        """
+        更新配置文件中的特定键值（保留注释）
+        
+        Args:
+            updates (dict): 需要更新的键值对
+            
+        Returns:
+            bool: 是否更新成功
+        """
+        return self.config_manager.update_config_file(updates)
+
     def get_history_sessions(self, allowed_user_ids=None):
         """
         获取历史会话数据
@@ -180,3 +201,24 @@ class ModelChatAPI:
         data_config = self.config_manager.load_data()
         admins = data_config.get('admins', [])
         return str(user_id) in admins or str(user_id) == self.config.get('root', '')
+
+    def reload_all_configs(self):
+        """
+        重新加载所有配置并通知相关组件
+        
+        Returns:
+            bool: 是否重新加载成功
+        """
+        try:
+            # 重新加载主配置文件
+            with open(self.config_manager.get_config_path(), 'r', encoding='utf-8') as f:
+                self.config = yaml.safe_load(f)
+            
+            # 通知chat_model_instance重新加载配置
+            if hasattr(self, 'chat_model_instance'):
+                self.config_manager.reload_all_configs(self.chat_model_instance)
+            
+            return True
+        except Exception as e:
+            print(f"重新加载所有配置出错: {e}")
+            return False

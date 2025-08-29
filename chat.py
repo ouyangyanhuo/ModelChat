@@ -14,7 +14,7 @@ class BaseChatModel:
         """初始化参数"""
         self.plugin_dir = plugin_dir
         self.config_manager = ConfigManager(plugin_dir)
-        self.config = self.config_manager.load_config()
+        self.config = self.config_manager.load_config_file()
         self.data_config = self.config_manager.load_data()
         # 初始化历史记录存储
         self.history_file = os.path.abspath(os.path.join(plugin_dir, './cache/history.json')).replace("\\", "/")
@@ -22,8 +22,9 @@ class BaseChatModel:
 
     def _clean_reply(self, text):
         """清理回复中的Markdown格式符号"""
-        # 从配置文件中获取需要清理的符号
-        cleanup_chars = self.config.get('cleanup_chars', [])
+
+        # 从数据文件中获取需要清理的符号
+        cleanup_chars = self.data_config.get('cleanup_chars', [])
 
         for char in cleanup_chars:
             text = text.replace(char, "")
@@ -76,7 +77,8 @@ class BaseChatModel:
 
             self.history[user_id].append(message)
             # 保持历史记录长度在设定范围内，默认为 10 条
-            max_length = self.config.get('memory_length', 10)
+            current_config = self.config_manager.load_config_file()
+            max_length = current_config.get('memory_length', 10)
             if len(self.history[user_id]) > max_length:
                 self.history[user_id] = self.history[user_id][-max_length:]
 
@@ -163,21 +165,6 @@ class ChatModelLangchain(BaseChatModel):
         """使用Langchain初始化参数"""
         super().__init__(plugin_dir)
 
-        # 初始化 Langchain ChatOpenAI 客户端
-        self.client = ChatOpenAI(
-            model_name=self.config["model"],
-            temperature=self.config.get("model_temperature", 0.6),
-            openai_api_key=self.config["api_key"],
-            openai_api_base=self.config["base_url"],
-        )
-
-        # 初始化视觉模型客户端
-        self.vision_client = ChatOpenAI(
-            model_name=self.config.get("vision_model"),
-            openai_api_key=self.config.get("vision_api_key", self.config["api_key"]),
-            openai_api_base=self.config.get("vision_base_url"),
-        )
-
         # MCP 客户端设置
         self.mcp_client = None
         self.mcp_tools = []
@@ -198,11 +185,37 @@ class ChatModelLangchain(BaseChatModel):
         # 内存
         self.user_histories = {}
 
+    def _get_client(self):
+        """动态获取聊天客户端"""
+        # 每次调用时重新加载配置
+        current_config = self.config_manager.load_config_file()
+        
+        return ChatOpenAI(
+            model_name=current_config["model"],
+            temperature=current_config.get("model_temperature", 0.6),
+            openai_api_key=current_config["api_key"],
+            openai_api_base=current_config["base_url"],
+        )
+
+    def _get_vision_client(self):
+        """动态获取视觉客户端"""
+        # 每次调用时重新加载配置
+        current_config = self.config_manager.load_config_file()
+        
+        return ChatOpenAI(
+            model_name=current_config.get("vision_model"),
+            openai_api_key=current_config.get("vision_api_key", current_config["api_key"]),
+            openai_api_base=current_config.get("vision_base_url"),
+        )
+
     async def _init_graph(self):
         """初始化 LangGraph + MCP 工具"""
         if self.graph:
             return self.graph
 
+        # 动态获取配置
+        current_config = self.config_manager.load_config_file()
+        
         tools = []
         if self.mcp_client:
             try:
@@ -215,17 +228,20 @@ class ChatModelLangchain(BaseChatModel):
                 else:
                     print(f"MCP 工具加载失败: {e}")
 
+        # 获取动态客户端
+        client = self._get_client()
+        
         # 若模型不支持 tools，就不要 bind_tools
-        model_with_tools = self.client
+        model_with_tools = client
         tool_node = None
         if tools:
             try:
                 # 尝试绑定，如果失败就退回原始模型
-                model_with_tools = self.client.bind_tools(tools)
+                model_with_tools = client.bind_tools(tools)
                 tool_node = ToolNode(tools)
             except Exception as e:
                 print(f"模型不支持 tools，使用原始模型: {e}")
-                model_with_tools = self.client
+                model_with_tools = client
                 tool_node = ToolNode(tools)
 
         async def call_model(state: MessagesState):
@@ -276,8 +292,11 @@ class ChatModelLangchain(BaseChatModel):
             # 构建包含图片和用户问题的消息
             messages = self._build_vision_messages(image_data, prompt)
 
+            # 动态获取视觉客户端
+            vision_client = self._get_vision_client()
+
             # 调用视觉模型
-            response = self.vision_client.invoke(messages)
+            response = vision_client.invoke(messages)
 
             reply = self._clean_reply(response.content)
             return reply
@@ -290,9 +309,11 @@ class ChatModelLangchain(BaseChatModel):
 
     async def useModel(self, msg: GroupMessage, user_input: str):
         """使用 LangChain + MCP 处理消息"""
+        # 重新加载配置
+        self.config_manager.reload_config()
+        
         try:
             graph = await self._init_graph()
-
 
             # 构建包含历史记录的消息
             messages = []
@@ -333,20 +354,31 @@ class ChatModel(BaseChatModel):
         """初始化参数"""
         super().__init__(config_path)
 
-        # 初始化 OpenAI 客户端
-        self.client = OpenAI(
-            api_key=self.config['api_key'],
-            base_url=self.config['base_url']
+    def _get_client(self):
+        """动态获取聊天客户端"""
+        # 每次调用时重新加载配置
+        current_config = self.config_manager.load_config_file()
+        
+        return OpenAI(
+            api_key=current_config['api_key'],
+            base_url=current_config['base_url']
         )
 
-        # 初始化视觉模型客户端（用于图像识别）
-        self.vision_client = OpenAI(
-            api_key=self.config.get('vision_api_key', self.config['api_key']),
-            base_url=self.config.get('vision_base_url')
+    def _get_vision_client(self):
+        """动态获取视觉客户端"""
+        # 每次调用时重新加载配置
+        current_config = self.config_manager.load_config_file()
+        
+        return OpenAI(
+            api_key=current_config.get('vision_api_key', current_config['api_key']),
+            base_url=current_config.get('vision_base_url')
         )
 
     def _build_messages(self, user_input: str, user_id: str = None):
         """构建消息列表"""
+        # 动态加载配置
+        current_config = self.config_manager.load_config_file()
+        
         messages = []
 
         # 添加系统提示词
@@ -370,6 +402,9 @@ class ChatModel(BaseChatModel):
 
     async def recognize_image_with_prompt(self, image_url: str, prompt: str = "请描述这张图片"):
         """使用视觉模型识别图片并结合用户问题"""
+        # 动态加载配置
+        current_config = self.config_manager.load_config_file()
+        
         try:
             # 获取并编码图片
             image_data = self._encode_image_from_url(image_url)
@@ -377,11 +412,14 @@ class ChatModel(BaseChatModel):
             # 构建包含图片和用户问题的消息
             messages = self._build_vision_messages(image_data, prompt)
 
+            # 动态获取视觉客户端
+            vision_client = self._get_vision_client()
+
             # 调用视觉模型
-            response = self.vision_client.chat.completions.create(
-                model=self.config.get('vision_model'),
+            response = vision_client.chat.completions.create(
+                model=current_config.get('vision_model'),
                 messages=messages,
-                temperature=self.config.get('model_temperature', 0.6),
+                temperature=current_config.get('model_temperature', 0.6),
                 stream=False,
                 max_tokens=2048
             )
@@ -397,14 +435,20 @@ class ChatModel(BaseChatModel):
 
     async def useModel(self, msg: GroupMessage, user_input: str):
         """使用模型处理消息，具有记忆能力"""
+        # 动态加载配置
+        current_config = self.config_manager.load_config_file()
+        
         try:
             # 构建消息列表，包含历史记录
             messages = self._build_messages(user_input, msg.user_id if hasattr(msg, 'user_id') else None)
 
-            response = self.client.chat.completions.create(
-                model=self.config['model'],
+            # 动态获取客户端
+            client = self._get_client()
+
+            response = client.chat.completions.create(
+                model=current_config['model'],
                 messages=messages,
-                temperature=self.config.get('model_temperature', 0.6),
+                temperature=current_config.get('model_temperature', 0.6),
                 stream=False
             )
             reply = self._clean_reply(response.choices[0].message.content.strip())
