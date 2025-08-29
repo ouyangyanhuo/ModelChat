@@ -576,7 +576,12 @@ async function loadConfigAndShowSettings() {
             document.getElementById('enable_mcp').checked = config.enable_mcp || false;
             document.getElementById('enable_export').checked = config.enable_export || false;
             document.getElementById('enable_webui').checked = config.enable_webui || false;
-
+            
+            // 添加持续会话系统开关的填充
+            document.getElementById('enable_continuous_session').checked = config.enable_continuous_session !== undefined ? 
+                config.enable_continuous_session : true;
+            
+            // 添加WebUI配置字段的填充
             document.getElementById('webui_host').value = config.webui_host || '127.0.0.1';
             document.getElementById('webui_port').value = config.webui_port || 5000;
             document.getElementById('webui_open_browser').checked = config.webui_open_browser || false;
@@ -596,6 +601,18 @@ if (settingsForm) {
     settingsForm.addEventListener('submit', async function(e) {
         e.preventDefault();
         
+        // 首先获取当前配置
+        let currentConfig = {};
+        try {
+            const response = await fetch('/api/config');
+            const data = await response.json();
+            if (response.ok) {
+                currentConfig = data.config;
+            }
+        } catch (error) {
+            console.error('获取当前配置时出错:', error);
+        }
+        
         // 收集表单数据
         const updates = {};
         
@@ -605,7 +622,8 @@ if (settingsForm) {
             'vision_api_key', 'vision_base_url', 'vision_model',
             'memory_length', 'model_temperature',
             'enable_vision', 'enable_mcp', 'enable_export', 'enable_webui',
-            'webui_host', 'webui_port', 'webui_open_browser'
+            'webui_host', 'webui_port', 'webui_open_browser',
+            'enable_continuous_session'
         ];
         
         fields.forEach(field => {
@@ -622,6 +640,24 @@ if (settingsForm) {
             }
         });
         
+        // 检查是否修改了需要重启的配置项
+        const requiresRestart = [
+            'enable_webui', 
+            'webui_host', 
+            'webui_port', 
+            'webui_open_browser',
+            'enable_continuous_session'
+        ];
+        
+        let needRestart = false;
+        for (const field of requiresRestart) {
+            // 比较修改前后的值是否不同
+            if (updates[field] !== undefined && updates[field] !== currentConfig[field]) {
+                needRestart = true;
+                break;
+            }
+        }
+        
         try {
             const response = await fetch('/api/config', {
                 method: 'PATCH',
@@ -634,10 +670,16 @@ if (settingsForm) {
             const data = await response.json();
             
             if (response.ok) {
-                alert('设置已保存并生效');
+                if (needRestart) {
+                    alert('设置已保存，但检测到您修改了WebUI或持续会话系统相关配置，需要手动重启系统才能生效。');
+                } else {
+                    alert('设置已保存并生效');
+                }
                 moreSettingsModal.classList.add('hidden');
-                // 重新加载页面以应用新配置
-                location.reload();
+                // 如果不需要重启，重新加载页面以应用新配置
+                if (!needRestart) {
+                    location.reload();
+                }
             } else {
                 alert('保存设置失败: ' + (data.error || '未知错误'));
             }

@@ -10,7 +10,7 @@
 <body class="bg-gray-100">
     <div class="flex h-screen">
         <!-- 会话侧边栏 -->
-        <div class="w-64 bg-white flex flex-col border-r border-gray-200 dark:bg-gray-800 dark:border-gray-700">
+        <div class="w-64 bg-white flex flex-col border-r border-gray-200 dark:bg-gray-800 dark:border-gray-700 mobile-display">
             <div class="p-4">
                 <button id="new-session-btn" class="w-full bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded flex items-center justify-center dark:bg-blue-600 dark:hover:bg-blue-700">
                     <i class="fas fa-plus mr-2"></i>
@@ -291,6 +291,13 @@
                                    class="rounded">
                             <label for="enable_webui" class="ml-3 text-gray-700">
                                 启用 WebUI
+                            </label>
+                        </div>
+                        <div class="flex items-center">
+                            <input type="checkbox" id="enable_continuous_session" name="enable_continuous_session"
+                                   class="rounded">
+                            <label for="enable_continuous_session" class="ml-3 text-gray-700">
+                                启用持续会话系统
                             </label>
                         </div>
                     </div>

@@ -613,3 +613,53 @@ body.dark-mode {
 .dark-mode #more-settings-modal button[type="submit"]:hover {
     background-color: #1d4ed8;
 }
+
+/* 移动端适配 - 隐藏侧边栏 */
+@media (max-width: 767px) {
+    .w-64 {
+        display: none;
+    }
+
+    /* 调整主内容区域在移动端的布局 */
+    .flex.h-screen {
+        flex-direction: column;
+    }
+
+    /* 调整聊天区域在移动端的样式 */
+    .chat-bubble {
+        max-width: 80%;
+    }
+
+    /* 移动端消息输入区域调整 */
+    .bg-white.p-4 {
+        padding: 0.5rem;
+    }
+
+    #message-input {
+        padding: 0.5rem;
+        font-size: 1rem;
+    }
+
+    .send-button {
+        padding: 0.5rem 1rem;
+        font-size: 0.875rem;
+    }
+
+    /* 移动端会话列表项调整 */
+    .session-item {
+        padding: 0.5rem;
+    }
+
+    /* 移动端模态框调整 */
+    #prompt-modal .max-w-2xl,
+    #password-modal .max-w-md,
+    #more-settings-modal .max-w-2xl {
+        width: 95%;
+        max-width: none;
+    }
+
+    /* 移动端侧边栏调整(力大砖飞） */
+    .w-64.bg-white.flex.flex-col.border-r.border-gray-200.dark\:bg-gray-800.dark\:border-gray-700 {
+        display: none;
+    }
+}
