@@ -24,7 +24,7 @@ ban_manager = BanManager(plugin_dir)
 
 class ModelChat(BasePlugin):
     name = "ModelChat"
-    version = "2.2.0"
+    version = "2.3.0"
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

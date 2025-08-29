@@ -1,13 +1,7 @@
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for, make_response
 from plugins.ModelChat.api import ModelChatAPI
 from ncatbot.utils import config as bot_config
-import os
-import threading
-import webbrowser
-import asyncio
-import hashlib
-import secrets
-import json
+import os, threading, webbrowser, asyncio, hashlib, secrets, json
 
 class ModelChatWebUI:
     def __init__(self, plugin_dir):

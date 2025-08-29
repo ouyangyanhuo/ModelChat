@@ -8,8 +8,6 @@
 - 支持标准化 MCP 服务器，如 [12306-mcp
 ](https://www.modelscope.cn/mcp/servers/@Joooook/12306-mcp)，但建议不要过多使用，使用 MCP 功能会多次调用 API，TOKENS 消耗速度略快
 
-## 注意：
-当前正在 main 分支进行 WebUI 开发，如果要下载插件请前往 [release](https://github.com/ouyangyanhuo/ModelChat/releases) 下载
 ## 开始使用
 
 使用 `聊天菜单` 指令，可以获取所有指令，当配置为 Nacatbot 管理员时，会被认为是超级管理。
@@ -63,9 +61,9 @@ ModelChat/
 
 ## 更新日志
 - 2.3.0
-  - 新增 配置动态加载（以适配 WebUI)
   - 修复 历史记录缓存 Bug
-  - 新增 WebUI 功能，可以进行聊天对话
+  - 新增 配置动态加载（以适配 WebUI)
+  - 新增 WebUI 功能，可以进行聊天对话、在线配置系统
 - 2.2.0
   - 新增 导出数据&配置文件功能（高危行为，仅超级管理员可用，并需在启动时修改配置文件）
 - 2.1.0

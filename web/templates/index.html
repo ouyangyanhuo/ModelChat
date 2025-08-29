@@ -26,7 +26,7 @@
                 <div class="p-2">
                     <button id="view-prompt-btn" class="w-full text-left p-3 rounded hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center">
                         <i class="fas fa-sticky-note mr-3 text-gray-500 dark:text-gray-400"></i>
-                        <span class="text-gray-700 dark:text-gray-300">查看系统提示词</span>
+                        <span class="text-gray-700 dark:text-gray-300">系统提示词</span>
                     </button>
                     <button id="change-password-btn" class="w-full text-left p-3 rounded hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center">
                         <i class="fas fa-key mr-3 text-gray-500 dark:text-gray-400"></i>
@@ -112,7 +112,21 @@
                     <i class="fas fa-times"></i>
                 </button>
             </div>
-            <div id="prompt-content" class="whitespace-pre-wrap bg-gray-100 p-4 rounded dark:bg-gray-700"></div>
+            <div class="p-4">
+                <textarea id="system-prompt-text"
+                          class="w-full h-48 border rounded p-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                          placeholder="请输入系统提示词..."></textarea>
+                <div class="flex justify-end space-x-2 mt-4">
+                    <button id="cancel-prompt-change"
+                            class="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100">
+                        取消
+                    </button>
+                    <button id="save-prompt-button"
+                            class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700">
+                        保存
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -267,35 +281,35 @@
                     <div class="space-y-3">
                         <div class="flex items-center">
                             <input type="checkbox" id="enable_vision" name="enable_vision"
-                                   class="rounded">
+                                   class="accent-blue-500" checked>
                             <label for="enable_vision" class="ml-3 text-gray-700">
                                 开启图像识别功能
                             </label>
                         </div>
                         <div class="flex items-center">
                             <input type="checkbox" id="enable_mcp" name="enable_mcp"
-                                   class="rounded">
+                                   class="accent-blue-500" checked>
                             <label for="enable_mcp" class="ml-3 text-gray-700">
                                 启用 MCP (本地模型兼容性较差)
                             </label>
                         </div>
                         <div class="flex items-center">
                             <input type="checkbox" id="enable_export" name="enable_export"
-                                   class="rounded">
+                                   class="accent-blue-500" checked>
                             <label for="enable_export" class="ml-3 text-gray-700">
                                 启用导出功能
                             </label>
                         </div>
                         <div class="flex items-center">
                             <input type="checkbox" id="enable_webui" name="enable_webui"
-                                   class="rounded">
+                                   class="accent-blue-500" checked>
                             <label for="enable_webui" class="ml-3 text-gray-700">
                                 启用 WebUI
                             </label>
                         </div>
                         <div class="flex items-center">
                             <input type="checkbox" id="enable_continuous_session" name="enable_continuous_session"
-                                   class="rounded">
+                                   class="accent-blue-500" checked>
                             <label for="enable_continuous_session" class="ml-3 text-gray-700">
                                 启用持续会话系统
                             </label>
@@ -325,7 +339,7 @@
                         <div class="md:col-span-2">
                             <div class="flex items-center">
                                 <input type="checkbox" id="webui_open_browser" name="webui_open_browser"
-                                       class="rounded">
+                                       class="accent-blue-500" checked>
                                 <label for="webui_open_browser" class="ml-3 text-gray-700">
                                     启动时自动打开浏览器
                                 </label>
