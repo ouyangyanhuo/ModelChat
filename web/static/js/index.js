@@ -576,6 +576,10 @@ async function loadConfigAndShowSettings() {
             document.getElementById('enable_mcp').checked = config.enable_mcp || false;
             document.getElementById('enable_export').checked = config.enable_export || false;
             document.getElementById('enable_webui').checked = config.enable_webui || false;
+
+            document.getElementById('webui_host').value = config.webui_host || '127.0.0.1';
+            document.getElementById('webui_port').value = config.webui_port || 5000;
+            document.getElementById('webui_open_browser').checked = config.webui_open_browser || false;
             
             // 显示模态框
             moreSettingsModal.classList.remove('hidden');
@@ -600,7 +604,8 @@ if (settingsForm) {
             'api_key', 'base_url', 'model',
             'vision_api_key', 'vision_base_url', 'vision_model',
             'memory_length', 'model_temperature',
-            'enable_vision', 'enable_mcp', 'enable_export', 'enable_webui'
+            'enable_vision', 'enable_mcp', 'enable_export', 'enable_webui',
+            'webui_host', 'webui_port', 'webui_open_browser'
         ];
         
         fields.forEach(field => {
