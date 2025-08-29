@@ -38,7 +38,10 @@ class BaseChatModel:
         try:
             if os.path.exists(self.history_file):
                 with open(self.history_file, 'r', encoding='utf-8') as f:
-                    return json.load(f)
+                    loaded_history = json.load(f)
+                    # 同步更新实例中的history属性
+                    self.history = loaded_history
+                    return loaded_history
         except Exception as e:
             print(f"FUCKING ERROR 加载历史记录出错: {e}")
         return {}
@@ -62,9 +65,13 @@ class BaseChatModel:
 
     def get_user_history(self, user_id):
         """获取用户的历史记录（公共接口）"""
-        return self._get_user_history(user_id)
+        # 确保获取最新的历史记录，从文件重新加载
+        self.history = self._load_history()
+        return self.history.get(str(user_id), [])
     def _get_user_history(self, user_id):
         """获取用户的历史记录"""
+        # 确保获取最新的历史记录，从文件重新加载
+        self.history = self._load_history()
         return self.history.get(str(user_id), [])
 
     def _update_user_history(self, user_id, message):
@@ -157,6 +164,11 @@ class BaseChatModel:
             reply = "已清空聊天记录"
         else:
             reply = "没有找到用户的聊天记录"
+            
+        # 同时清除用户历史缓存（如果有）
+        if hasattr(self, 'user_histories') and user_id in self.user_histories:
+            del self.user_histories[user_id]
+            
         return reply
 
 
