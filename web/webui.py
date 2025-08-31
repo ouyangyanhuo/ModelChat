@@ -24,12 +24,7 @@ class ModelChatWebUI:
     def _ensure_password_file(self):
         """确保密码文件存在"""
         if not os.path.exists(self.password_file):
-            # 创建默认密码文件
-            default_data = {
-                "password": ""
-            }
-            with open(self.password_file, 'w', encoding='utf-8') as f:
-                json.dump(default_data, f, ensure_ascii=False, indent=2)
+            self._create_default_password_file()
         else:
             # 检查文件内容
             try:
@@ -37,18 +32,16 @@ class ModelChatWebUI:
                     data = json.load(f)
                 if not data or "password" not in data:
                     # 文件为空或格式不正确，重新创建
-                    default_data = {
-                        "password": ""
-                    }
-                    with open(self.password_file, 'w', encoding='utf-8') as f:
-                        json.dump(default_data, f, ensure_ascii=False, indent=2)
+                    self._create_default_password_file()
             except (json.JSONDecodeError, FileNotFoundError):
                 # 文件损坏或无法读取，重新创建
-                default_data = {
-                    "password": ""
-                }
-                with open(self.password_file, 'w', encoding='utf-8') as f:
-                    json.dump(default_data, f, ensure_ascii=False, indent=2)
+                self._create_default_password_file()
+    
+    def _create_default_password_file(self):
+        """创建默认密码文件"""
+        default_data = {"password": ""}
+        with open(self.password_file, 'w', encoding='utf-8') as f:
+            json.dump(default_data, f, ensure_ascii=False, indent=2)
                 
     def _load_passwords(self):
         """加载密码文件"""
@@ -71,35 +64,71 @@ class ModelChatWebUI:
         """获取超级管理员用户ID"""
         return bot_config.root
 
+    def _require_auth(self, f):
+        """认证装饰器"""
+        def wrapper(*args, **kwargs):
+            if not session.get('authenticated'):
+                return jsonify({'error': '未授权访问'}), 401
+            return f(*args, **kwargs)
+        wrapper.__name__ = f.__name__
+        return wrapper
+
+    def _handle_form_or_json(self, request):
+        """处理表单或JSON请求数据"""
+        if request.is_json:
+            return request.get_json()
+        else:
+            # 将表单数据转换为字典
+            return request.form.to_dict()
+
+    def _json_response(self, data, status_code=200):
+        """统一JSON响应格式"""
+        response = jsonify(data)
+        response.status_code = status_code
+        return response
+
+    def _redirect_response(self, endpoint):
+        """统一重定向响应格式"""
+        if request.is_json:
+            return self._json_response({'redirect': url_for(endpoint)})
+        else:
+            return redirect(url_for(endpoint))
+
+    def _error_response(self, message, status_code=400):
+        """统一错误响应格式"""
+        if request.is_json:
+            return self._json_response({'error': message}, status_code)
+        else:
+            # 对于登录页面的错误，渲染模板并传递错误信息
+            if request.endpoint == 'login':
+                return render_template('login.html', error=message)
+            elif request.endpoint == 'set_password':
+                return render_template('set_password.html', error=message)
+            else:
+                return self._json_response({'error': message}, status_code)
+
     def _setup_routes(self):
         @self.app.route('/check_first_login')
         def check_first_login():
             # 检查是否为首次登录
             passwords_data = self._load_passwords()
             is_first_login = not passwords_data.get("password", "")
-            return jsonify({'first_login': is_first_login})
+            return self._json_response({'first_login': is_first_login})
 
         @self.app.route('/login', methods=['GET', 'POST'])
         def login():
             if request.method == 'POST':
                 # 处理JSON请求数据或表单数据
-                if request.is_json:
-                    data = request.get_json()
-                    username = data.get('username')
-                    password = data.get('password')
-                else:
-                    username = request.form.get('username')
-                    password = request.form.get('password')
+                data = self._handle_form_or_json(request)
+                username = data.get('username')
+                password = data.get('password')
                 
                 # 获取超级管理员ID
                 admin_id = self._get_admin_user_id()
                 
                 # 检查用户名是否正确
                 if username != admin_id:
-                    if request.is_json:
-                        return jsonify({'error': '用户名或密码错误'}), 401
-                    else:
-                        return render_template('login.html', error='用户名或密码错误')
+                    return self._error_response('用户名或密码错误', 401)
                 
                 # 加载密码数据
                 passwords_data = self._load_passwords()
@@ -111,10 +140,7 @@ class ModelChatWebUI:
                         # 使用默认密码登录成功，要求设置新密码
                         session['temp_authenticated'] = True
                         session['temp_username'] = username
-                        if request.is_json:
-                            return jsonify({'redirect': url_for('set_password')})
-                        else:
-                            return redirect(url_for('set_password'))
+                        return self._redirect_response('set_password')
                 else:
                     # 验证密码
                     if self._hash_password(password) == stored_password_hash:
@@ -125,14 +151,13 @@ class ModelChatWebUI:
                         session['token'] = token
                         
                         # 设置cookie
-                        resp = make_response(jsonify({'redirect': url_for('index')}))
+                        resp = self._redirect_response('index')
+                        if not request.is_json:
+                            resp = make_response(resp)
                         resp.set_cookie('token', token, httponly=True)
                         return resp
                 
-                if request.is_json:
-                    return jsonify({'error': '用户名或密码错误'}), 401
-                else:
-                    return render_template('login.html', error='用户名或密码错误')
+                return self._error_response('用户名或密码错误', 401)
             
             return render_template('login.html')
             
@@ -140,35 +165,22 @@ class ModelChatWebUI:
         def set_password():
             # 检查是否有临时认证
             if not session.get('temp_authenticated'):
-                return redirect(url_for('login'))
+                return self._redirect_response('login')
                 
             if request.method == 'POST':
                 # 处理JSON请求数据或表单数据
-                if request.is_json:
-                    data = request.get_json()
-                    new_password = data.get('new_password')
-                    confirm_password = data.get('confirm_password')
-                else:
-                    new_password = request.form.get('new_password')
-                    confirm_password = request.form.get('confirm_password')
+                data = self._handle_form_or_json(request)
+                new_password = data.get('new_password')
+                confirm_password = data.get('confirm_password')
                 
                 if not new_password or not confirm_password:
-                    if request.is_json:
-                        return jsonify({'error': '密码不能为空'}), 400
-                    else:
-                        return render_template('set_password.html', error='密码不能为空')
+                    return self._error_response('密码不能为空', 400)
                     
                 if new_password != confirm_password:
-                    if request.is_json:
-                        return jsonify({'error': '两次输入的密码不一致'}), 400
-                    else:
-                        return render_template('set_password.html', error='两次输入的密码不一致')
+                    return self._error_response('两次输入的密码不一致', 400)
                 
                 if len(new_password) < 6:
-                    if request.is_json:
-                        return jsonify({'error': '密码长度至少为6位'}), 400
-                    else:
-                        return render_template('set_password.html', error='密码长度至少为6位')
+                    return self._error_response('密码长度至少为6位', 400)
                 
                 # 保存新密码
                 passwords_data = self._load_passwords()
@@ -187,7 +199,9 @@ class ModelChatWebUI:
                 session['token'] = token
                 
                 # 设置cookie
-                resp = make_response(jsonify({'redirect': url_for('index')}))
+                resp = self._redirect_response('index')
+                if not request.is_json:
+                    resp = make_response(resp)
                 resp.set_cookie('token', token, httponly=True)
                 return resp
             
@@ -207,14 +221,12 @@ class ModelChatWebUI:
         @self.app.route('/')
         def index():
             if not session.get('authenticated'):
-                return redirect(url_for('login'))
+                return self._redirect_response('login')
             return render_template('index.html')
             
         @self.app.route('/api/chat', methods=['POST'])
+        @self._require_auth
         def chat():
-            if not session.get('authenticated'):
-                return jsonify({'error': '未授权访问'}), 401
-                
             data = request.json
             user_id = data.get('user_id', 0)
             message = data.get('message', '')
@@ -222,124 +234,104 @@ class ModelChatWebUI:
             
             try:
                 response = asyncio.run(self.api.generate_response(user_id, message, group_id))
-                return jsonify({'response': response})
+                return self._json_response({'response': response})
             except Exception as e:
-                return jsonify({'error': str(e)}), 500
+                return self._json_response({'error': str(e)}, 500)
                 
         @self.app.route('/api/system_prompt', methods=['GET'])
+        @self._require_auth
         def get_system_prompt():
-            if not session.get('authenticated'):
-                return jsonify({'error': '未授权访问'}), 401
-                
             try:
                 prompt = self.api.get_system_prompt()
-                return jsonify({'prompt': prompt})
+                return self._json_response({'prompt': prompt})
             except Exception as e:
-                return jsonify({'error': str(e)}), 500
+                return self._json_response({'error': str(e)}, 500)
                 
         @self.app.route('/api/system_prompt', methods=['POST'])
+        @self._require_auth
         def set_system_prompt():
-            if not session.get('authenticated'):
-                return jsonify({'error': '未授权访问'}), 401
-                
             data = request.json
             prompt = data.get('prompt', '')
             try:
                 self.api.set_system_prompt(prompt)
-                return jsonify({'success': True})
+                return self._json_response({'success': True})
             except Exception as e:
-                return jsonify({'error': str(e)}), 500
+                return self._json_response({'error': str(e)}, 500)
                 
         @self.app.route('/api/history/<int:user_id>', methods=['GET'])
+        @self._require_auth
         def get_history(user_id):
-            if not session.get('authenticated'):
-                return jsonify({'error': '未授权访问'}), 401
-                
             try:
                 history = self.api.get_user_history(user_id)
-                return jsonify({'history': history})
+                return self._json_response({'history': history})
             except Exception as e:
-                return jsonify({'error': str(e)}), 500
+                return self._json_response({'error': str(e)}, 500)
                 
         @self.app.route('/api/history/<int:user_id>/clear', methods=['POST'])
+        @self._require_auth
         def clear_history(user_id):
-            if not session.get('authenticated'):
-                return jsonify({'error': '未授权访问'}), 401
-                
             try:
                 result = self.api.clear_user_history(user_id)
-                return jsonify({'result': result})
+                return self._json_response({'result': result})
             except Exception as e:
-                return jsonify({'error': str(e)}), 500
+                return self._json_response({'error': str(e)}, 500)
                 
         @self.app.route('/api/session/<int:user_id>', methods=['DELETE'])
+        @self._require_auth
         def delete_session(user_id):
-            if not session.get('authenticated'):
-                return jsonify({'error': '未授权访问'}), 401
-            
             try:
                 # 删除指定用户的历史记录
                 result = self.api.delete_user_history(user_id)
                 if result:
-                    return jsonify({'success': True})
+                    return self._json_response({'success': True})
                 else:
-                    return jsonify({'error': '删除失败'}), 500
+                    return self._json_response({'error': '删除失败'}, 500)
             except Exception as e:
-                return jsonify({'error': str(e)}), 500
+                return self._json_response({'error': str(e)}, 500)
 
         @self.app.route('/api/current_user')
+        @self._require_auth
         def current_user():
-            if not session.get('authenticated'):
-                return jsonify({'error': '未授权访问'}), 401
-            
-            return jsonify({'username': session.get('username', 'unknown')})
+            return self._json_response({'username': session.get('username', 'unknown')})
             
         @self.app.route('/api/sessions', methods=['GET'])
+        @self._require_auth
         def get_sessions():
-            if not session.get('authenticated'):
-                return jsonify({'error': '未授权访问'}), 401
-            
             try:
                 # 只获取 10000 - 10099 范围内的用户ID
                 allowed_user_ids = list(range(10000, 10100))
                 sessions = self.api.get_history_sessions(allowed_user_ids)
-                return jsonify({'sessions': sessions})
+                return self._json_response({'sessions': sessions})
             except Exception as e:
-                return jsonify({'error': str(e)}), 500
+                return self._json_response({'error': str(e)}, 500)
 
         @self.app.route('/api/config', methods=['GET'])
+        @self._require_auth
         def get_config():
-            if not session.get('authenticated'):
-                return jsonify({'error': '未授权访问'}), 401
-            
             try:
                 config = self.api.get_config()
-                return jsonify({'config': config})
+                return self._json_response({'config': config})
             except Exception as e:
-                return jsonify({'error': str(e)}), 500
+                return self._json_response({'error': str(e)}, 500)
 
         @self.app.route('/api/config', methods=['POST'])
+        @self._require_auth
         def save_config():
-            if not session.get('authenticated'):
-                return jsonify({'error': '未授权访问'}), 401
-            
             try:
                 data = request.json
                 config_data = data.get('config', {})
                 
                 result = self.api.save_config(config_data)
                 if result:
-                    return jsonify({'success': True})
+                    return self._json_response({'success': True})
                 else:
-                    return jsonify({'error': '保存配置失败'}), 500
+                    return self._json_response({'error': '保存配置失败'}, 500)
             except Exception as e:
-                return jsonify({'error': str(e)}), 500
+                return self._json_response({'error': str(e)}, 500)
 
         @self.app.route('/api/config', methods=['PATCH'])
+        @self._require_auth
         def update_config():
-            if not session.get('authenticated'):
-                return jsonify({'error': '未授权访问'}), 401
-            
             try:
                 data = request.json
                 updates = data.get('updates', {})
@@ -348,34 +340,32 @@ class ModelChatWebUI:
                 if result:
                     # 更新配置后重新加载所有配置
                     self.api.reload_all_configs()
-                    return jsonify({'success': True})
+                    return self._json_response({'success': True})
                 else:
-                    return jsonify({'error': '更新配置失败'}), 500
+                    return self._json_response({'error': '更新配置失败'}, 500)
             except Exception as e:
-                return jsonify({'error': str(e)}), 500
+                return self._json_response({'error': str(e)}, 500)
 
         @self.app.route('/api/change_password', methods=['POST'])
+        @self._require_auth
         def change_password():
-            if not session.get('authenticated'):
-                return jsonify({'error': '未授权访问'}), 401
-                
             data = request.json
             old_password = data.get('old_password', '')
             new_password = data.get('new_password', '')
             
             if not old_password or not new_password:
-                return jsonify({'error': '密码不能为空'}), 400
+                return self._json_response({'error': '密码不能为空'}, 400)
                 
             # 验证旧密码
             passwords = self._load_passwords()
             stored_password_hash = passwords.get("password", "")
             if self._hash_password(old_password) != stored_password_hash:
-                return jsonify({'error': '旧密码错误'}), 400
+                return self._json_response({'error': '旧密码错误'}, 400)
                     
             # 更新密码
             passwords["password"] = self._hash_password(new_password)
             self._save_passwords(passwords)
-            return jsonify({'success': True})
+            return self._json_response({'success': True})
 
     def run(self, host='127.0.0.1', port=5000, debug=False, open_browser=True):
         # 设置安全相关的HTTP头

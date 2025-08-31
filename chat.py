@@ -29,6 +29,9 @@ class BaseChatModel:
         for char in cleanup_chars:
             text = text.replace(char, "")
 
+        # 移除think标签及其内容（深度思考内容）
+        text = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL)
+
         # 清理多余的空白行
         text = re.sub(r'\n\s*\n', '\n', text)
 
@@ -263,7 +266,6 @@ class ChatModelLangchain(BaseChatModel):
             system_prompt = system_prompt_manager.get_system_prompt()
             if not any(isinstance(msg, SystemMessage) for msg in messages):
                 messages = [SystemMessage(content=system_prompt)] + messages
-            print(f"{system_prompt}")
             response = await model_with_tools.ainvoke(messages)
             return {"messages": [response]}
 

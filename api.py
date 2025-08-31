@@ -1,6 +1,6 @@
 from .chat import ChatModel, ChatModelLangchain
 from .utils import ChatUtils, ConfigManager, SystemPromptManager
-import os, yaml, json
+import os, json
 
 class ModelChatAPI:
     """
