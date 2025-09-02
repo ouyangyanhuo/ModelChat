@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for, make_response
 from plugins.ModelChat.api import ModelChatAPI
 from ncatbot.utils import config as bot_config
+from functools import wraps
 import os, threading, webbrowser, asyncio, hashlib, secrets, json
 
 class ModelChatWebUI:
@@ -66,11 +67,13 @@ class ModelChatWebUI:
 
     def _require_auth(self, f):
         """认证装饰器"""
+        @wraps(f)
         def wrapper(*args, **kwargs):
             if not session.get('authenticated'):
-                return jsonify({'error': '未授权访问'}), 401
+                if request.is_json or request.path.startswith('/api/'):
+                    return jsonify({'error': '未授权访问'}), 401
+                return redirect(url_for('login'))
             return f(*args, **kwargs)
-        wrapper.__name__ = f.__name__
         return wrapper
 
     def _handle_form_or_json(self, request):
@@ -96,7 +99,7 @@ class ModelChatWebUI:
 
     def _error_response(self, message, status_code=400):
         """统一错误响应格式"""
-        if request.is_json:
+        if request.is_json or request.path.startswith('/api/'):
             return self._json_response({'error': message}, status_code)
         else:
             # 对于登录页面的错误，渲染模板并传递错误信息
@@ -154,7 +157,7 @@ class ModelChatWebUI:
                         resp = self._redirect_response('index')
                         if not request.is_json:
                             resp = make_response(resp)
-                        resp.set_cookie('token', token, httponly=True)
+                        resp.set_cookie('token', token, httponly=True, secure=request.is_secure)
                         return resp
                 
                 return self._error_response('用户名或密码错误', 401)
@@ -202,18 +205,14 @@ class ModelChatWebUI:
                 resp = self._redirect_response('index')
                 if not request.is_json:
                     resp = make_response(resp)
-                resp.set_cookie('token', token, httponly=True)
+                resp.set_cookie('token', token, httponly=True, secure=request.is_secure)
                 return resp
             
             return render_template('set_password.html')
             
         @self.app.route('/logout')
         def logout():
-            session.pop('authenticated', None)
-            session.pop('username', None)
-            session.pop('token', None)
-            session.pop('temp_authenticated', None)
-            session.pop('temp_username', None)
+            session.clear()
             resp = make_response(redirect(url_for('login')))
             resp.set_cookie('token', '', expires=0)
             return resp
@@ -374,9 +373,10 @@ class ModelChatWebUI:
             response.headers['X-Content-Type-Options'] = 'nosniff'
             response.headers['X-Frame-Options'] = 'DENY'
             response.headers['X-XSS-Protection'] = '1; mode=block'
+            response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
             return response
         
-        if open_browser:
+        if open_browser and not debug:
             threading.Timer(1.25, lambda: webbrowser.open(f'http://{host}:{port}')).start()
             
         self.app.run(host=host, port=port, debug=debug)
