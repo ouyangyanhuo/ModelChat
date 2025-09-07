@@ -31,7 +31,7 @@ class BaseChatModel:
 
         # 移除think标签及其内容（深度思考内容）
         text = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL)
-
+        
         # 清理多余的空白行
         text = re.sub(r'\n\s*\n', '\n', text)
 
@@ -46,7 +46,7 @@ class BaseChatModel:
                     self.history = loaded_history
                     return loaded_history
         except Exception as e:
-            print(f"FUCKING ERROR 加载历史记录出错: {e}")
+            print(f"加载历史记录出错: {e}")
         return {}
 
     def _save_history(self):
@@ -64,7 +64,7 @@ class BaseChatModel:
             with open(self.history_file, 'w', encoding='utf-8') as f:
                 json.dump(self.history, f, ensure_ascii=False, indent=2)  # type: ignore
         except Exception as e:
-            print(f"FUCKING ERROR 保存历史记录出错: {e}")
+            print(f"保存历史记录出错: {e}")
 
     def get_user_history(self, user_id):
         """获取用户的历史记录（公共接口）"""
