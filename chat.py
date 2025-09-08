@@ -31,7 +31,7 @@ class BaseChatModel:
 
         # 移除think标签及其内容（深度思考内容）
         text = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL)
-        
+
         # 清理多余的空白行
         text = re.sub(r'\n\s*\n', '\n', text)
 

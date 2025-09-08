@@ -6,7 +6,7 @@ from .utils import ChatUtils, SystemPromptManager, ConfigManager
 from .ban import BanManager
 from .commands import USER_COMMANDS, ADMIN_COMMANDS, SUPER_ADMIN_ONLY_COMMANDS
 from .web.webui import ModelChatWebUI
-import os,yaml
+import os
 import threading
 
 bot = CompatibleEnrollment  # 兼容回调函数注册器
@@ -72,7 +72,7 @@ class ModelChat(BasePlugin):
         self.chat_model = config_manager.load_config_file()
 
         # 从data.json加载admins配置
-        self.chat_model['admins'] = data_config.get('admins', [])
+        self.chat_model['admins'] = config_manager.load_data().get('admins', [])
             
         # 注册指令
         self.commands = USER_COMMANDS
@@ -130,15 +130,8 @@ class ModelChat(BasePlugin):
     async def active_chat_handler(self, msg: BaseMessage):
         """处理处于对话模式中的用户消息"""
         # 检查用户是否在对话模式中
-        if msg.user_id in self.active_chats:
-            user_input = msg.raw_message.strip()
-            
-            # 检查是否被ban或包含违禁词
-            if await chat_utils.check_ban_and_blocked_words(msg, user_input):
-                print("被 ban 或存在违禁词，被移出持续对话模式")
-                # 从活动对话中移除被ban的用户
-                self.active_chats.discard(msg.user_id)
-                return
+        if msg.user_id not in self.active_chats:
+            return
 
             print("正在向LLM发送聊天请求[持续模式]")
             # 处理图像输入
@@ -167,7 +160,7 @@ class ModelChat(BasePlugin):
             await msg.reply(text="您或您所在的群组已被禁止使用此功能。")
             return
 
-        # 将用户添加到活动对话集合中
+        # 检查用户是否已在对话模式中
         if msg.user_id in self.active_chats:
             await msg.reply(text="您已处于持续对话模式中，请勿重复启动。")
             return
@@ -239,6 +232,7 @@ class ModelChat(BasePlugin):
 
         reply = await self.chat_model_instance.clear_user_history(msg.user_id) # type: ignore
         await msg.reply(text=reply)
+        
     async def ban_manager(self, msg: GroupMessage):
         """管理ban列表的指令"""
         await self._handle_ban_unban_command(msg, is_ban=True)
@@ -421,5 +415,5 @@ class ModelChat(BasePlugin):
             await msg.reply(text="请先开启导出功能")
             return
 
-        await self.api.post_private_file(user_id=msg.user_id, file = f"{plugin_dir}/data.json")
-        await self.api.post_private_file(user_id=msg.user_id, file = f"{plugin_dir}/config.yml")
+        await self.api.post_private_file(user_id=msg.user_id, file=f"{plugin_dir}/data.json")
+        await self.api.post_private_file(user_id=msg.user_id, file=f"{plugin_dir}/config.yml")
