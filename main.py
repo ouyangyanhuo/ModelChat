@@ -414,6 +414,6 @@ class ModelChat(BasePlugin):
         if not current_config.get("enable_export", True):
             await msg.reply(text="请先开启导出功能")
             return
-
+        # 发送文件
         await self.api.post_private_file(user_id=msg.user_id, file=f"{plugin_dir}/data.json")
         await self.api.post_private_file(user_id=msg.user_id, file=f"{plugin_dir}/config.yml")
