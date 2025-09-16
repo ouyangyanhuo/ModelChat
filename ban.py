@@ -1,6 +1,7 @@
 from ncatbot.core import GroupMessage
 from ncatbot.utils import config
 from .utils import ConfigManager
+import time
 
 class BanManager:
     def __init__(self, plugin_dir):
@@ -11,10 +12,21 @@ class BanManager:
         self._banned_groups = set()
         self._banned_users = set()
         self._blocked_words = []
+        self._last_load_time = 0
+        self._cache_duration = 60  # 缓存60秒
         self._load_banlist()
 
-    def _load_banlist(self):
+    def _load_banlist(self, force=False):
         """加载ban列表"""
+        # 如果不是强制加载且缓存未过期，则不重新加载
+        current_time = time.time()
+        if not force and (current_time - self._last_load_time) < self._cache_duration:
+            return {
+                "banned_groups": self._banned_groups,
+                "banned_users": self._banned_users,
+                "blocked_words": self._blocked_words
+            }
+            
         try:
             # 通过ConfigManager加载数据
             data = self.config_manager.load_data()
@@ -23,14 +35,16 @@ class BanManager:
             self._banned_users = set(data.get("banned_users", []))
             # 保持违禁词为列表，因为检查时需要遍历
             self._blocked_words = data.get("blocked_words", [])
+            self._last_load_time = current_time
             return data
         except Exception as e:
             print(f"加载ban列表出错: {e}")
-        # 出错时初始化默认值
-        self._banned_groups = set()
-        self._banned_users = set()
-        self._blocked_words = []
-        return {"banned_groups": [], "banned_users": [], "blocked_words": []}
+        # 出错时返回当前缓存数据
+        return {
+            "banned_groups": self._banned_groups,
+            "banned_users": self._banned_users,
+            "blocked_words": self._blocked_words
+        }
 
     def _save_banlist(self):
         """保存ban列表"""
@@ -43,12 +57,13 @@ class BanManager:
             }
             # 通过ConfigManager保存数据
             self.config_manager.save_data(data)
+            self._last_load_time = time.time()  # 更新最后保存时间
         except Exception as e:
             print(f"保存ban列表出错: {e}")
 
     def is_banned(self, msg: GroupMessage):
         """检查用户或群组是否被ban"""
-        # 每次检查时都重新加载最新的ban列表
+        # 使用缓存机制加载最新的ban列表
         latest_banlist = self._load_banlist()
 
         # 检查用户是否被ban
@@ -63,7 +78,7 @@ class BanManager:
 
     def check_blocked_words(self, text):
         """检查文本是否包含违禁词"""
-        # 每次检查时都重新加载最新的违禁词列表
+        # 使用缓存机制加载最新的违禁词列表
         latest_banlist = self._load_banlist()
 
         for block_word in latest_banlist["blocked_words"]:
@@ -123,6 +138,8 @@ class BanManager:
 
     def get_banlist(self):
         """获取ban列表"""
+        # 强制重新加载数据以获取最新列表
+        self._load_banlist(force=True)
         return {
             "banned_groups": list(self._banned_groups),
             "banned_users": list(self._banned_users),
