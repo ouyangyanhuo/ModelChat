@@ -29,9 +29,6 @@ class BaseChatModel:
         for char in cleanup_chars:
             text = text.replace(char, "")
 
-        # 移除think标签及其内容（深度思考内容）
-        text = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL)
-        
         # 清理多余的空白行
         text = re.sub(r'\n\s*\n', '\n', text)
 
@@ -45,19 +42,8 @@ class BaseChatModel:
                     # 同步更新实例中的history属性
                     self.history = loaded_history
                     return loaded_history
-        except json.JSONDecodeError as e:
-            print(f"历史记录文件格式错误: {e}")
-            # 创建备份文件
-            import shutil
-            backup_file = self.history_file + ".bak"
-            shutil.copy2(self.history_file, backup_file)
-            print(f"已创建备份文件: {backup_file}")
-            return {}
-        except FileNotFoundError:
-            # 文件不存在是正常情况，不记录错误日志
-            return {}
         except Exception as e:
-            print(f"加载历史记录出错: {e}")
+            print(f"FUCKING ERROR 加载历史记录出错: {e}")
         return {}
 
     def _save_history(self):
@@ -75,17 +61,13 @@ class BaseChatModel:
             with open(self.history_file, 'w', encoding='utf-8') as f:
                 json.dump(self.history, f, ensure_ascii=False, indent=2)  # type: ignore
         except Exception as e:
-            print(f"保存历史记录出错: {e}")
+            print(f"FUCKING ERROR 保存历史记录出错: {e}")
 
     def get_user_history(self, user_id):
         """获取用户的历史记录（公共接口）"""
-        try:
-            # 确保获取最新的历史记录，从文件重新加载
-            self.history = self._load_history()
-            return self.history.get(str(user_id), [])
-        except Exception as e:
-            print(f"获取用户历史记录时出错: {e}")
-            return []
+        # 确保获取最新的历史记录，从文件重新加载
+        self.history = self._load_history()
+        return self.history.get(str(user_id), [])
     def _get_user_history(self, user_id):
         """获取用户的历史记录"""
         # 确保获取最新的历史记录，从文件重新加载
@@ -102,13 +84,8 @@ class BaseChatModel:
 
             self.history[user_id].append(message)
             # 保持历史记录长度在设定范围内，默认为 10 条
-            try:
-                current_config = self.config_manager.load_config_file()
-                max_length = current_config.get('memory_length', 10)
-            except Exception:
-                # 如果配置加载失败，使用默认值
-                max_length = 10
-                
+            current_config = self.config_manager.load_config_file()
+            max_length = current_config.get('memory_length', 10)
             if len(self.history[user_id]) > max_length:
                 self.history[user_id] = self.history[user_id][-max_length:]
 
@@ -119,16 +96,13 @@ class BaseChatModel:
 
     def _save_conversation_to_history(self, msg, user_input, reply, is_image=False):
         """保存对话到历史记录"""
-        try:
-            if hasattr(msg, 'user_id'):
-                # 如果是图片消息，将用户输入标记为"图片"
-                user_content = "[用户发送了一张图片]" if is_image else user_input
-                self._update_user_history(msg.user_id, {"role": "user", "content": user_content})
-                # 确保回复内容不为空再保存
-                if reply:
-                    self._update_user_history(msg.user_id, {"role": "assistant", "content": reply})
-        except Exception as e:
-            print(f"保存对话到历史记录时出错: {e}")
+        if hasattr(msg, 'user_id'):
+            # 如果是图片消息，将用户输入标记为"图片"
+            user_content = "[用户发送了一张图片]" if is_image else user_input
+            self._update_user_history(msg.user_id, {"role": "user", "content": user_content})
+            # 确保回复内容不为空再保存
+            if reply:
+                self._update_user_history(msg.user_id, {"role": "assistant", "content": reply})
 
     def _build_vision_messages(self, image_data: str, prompt: str = "请描述这张图片"):
         """构建图像识别消息列表"""
@@ -153,15 +127,9 @@ class BaseChatModel:
     def _encode_image_from_url(self, image_url: str) -> str:
         """从URL获取图片并编码为base64"""
         try:
-            response = requests.get(image_url, timeout=30)
+            response = requests.get(image_url)
             response.raise_for_status()
             return base64.b64encode(response.content).decode('utf-8')
-        except requests.exceptions.Timeout:
-            raise Exception("获取图片超时，请稍后重试")
-        except requests.exceptions.ConnectionError:
-            raise Exception("网络连接错误，无法获取图片")
-        except requests.exceptions.RequestException as e:
-            raise Exception(f"获取图片时发生网络错误: {str(e)}")
         except Exception as e:
             raise Exception(f"获取或编码图片失败: {str(e)}")
 
@@ -170,20 +138,12 @@ class BaseChatModel:
         error_str = str(error)
         if "401" in error_str or "Unauthorized" in error_str:
             return "模型API认证失败，请检查配置文件"
-        elif "403" in error_str:
-            return "模型API访问被拒绝，请检查API密钥和权限"
-        elif "429" in error_str:
-            return "请求过于频繁，请稍后再试"
         elif "500" in error_str:
             return "模型服务 500 错误，服务器内部错误，请检查云端大模型是否具备 MCP 功能"
         elif "502" in error_str:
             return "LLM 请求失败，请检查大模型是否开启"
-        elif "503" in error_str:
-            return "模型服务暂时不可用，请稍后再试"
         elif "timeout" in error_str.lower() or "time out" in error_str.lower():
             return "请求超时，请稍后重试"
-        elif "connection" in error_str.lower():
-            return "连接错误，请检查网络或API地址配置"
         else:
             return f"请求出错了：{error_str}"
 
@@ -197,23 +157,19 @@ class BaseChatModel:
 
     async def clear_user_history(self, user_id: str):
         """清除指定用户的历史记录"""
-        try:
-            user_id = str(user_id)
-            if user_id in self.history:
-                del self.history[user_id]
-                self._save_history()
-                reply = "已清空聊天记录"
-            else:
-                reply = "没有找到用户的聊天记录"
-                
-            # 同时清除用户历史缓存（如果有）
-            if hasattr(self, 'user_histories') and user_id in self.user_histories:
-                del self.user_histories[user_id]
-                
-            return reply
-        except Exception as e:
-            print(f"清除用户历史记录时出错: {e}")
-            return "清除聊天记录时出现错误"
+        user_id = str(user_id)
+        if user_id in self.history:
+            del self.history[user_id]
+            self._save_history()
+            reply = "已清空聊天记录"
+        else:
+            reply = "没有找到用户的聊天记录"
+            
+        # 同时清除用户历史缓存（如果有）
+        if hasattr(self, 'user_histories') and user_id in self.user_histories:
+            del self.user_histories[user_id]
+            
+        return reply
 
 
 class ChatModelLangchain(BaseChatModel):
@@ -269,13 +225,9 @@ class ChatModelLangchain(BaseChatModel):
         if self.graph:
             return self.graph
 
-        try:
-            # 动态获取配置
-            current_config = self.config_manager.load_config_file()
-        except Exception as e:
-            print(f"加载配置时出错: {e}")
-            raise Exception("配置加载失败")
-
+        # 动态获取配置
+        current_config = self.config_manager.load_config_file()
+        
         tools = []
         if self.mcp_client:
             try:
@@ -288,13 +240,9 @@ class ChatModelLangchain(BaseChatModel):
                 else:
                     print(f"MCP 工具加载失败: {e}")
 
-        try:
-            # 获取动态客户端
-            client = self._get_client()
-        except Exception as e:
-            print(f"获取客户端时出错: {e}")
-            raise Exception("无法初始化模型客户端")
-
+        # 获取动态客户端
+        client = self._get_client()
+        
         # 若模型不支持 tools，就不要 bind_tools
         model_with_tools = client
         tool_node = None
@@ -309,54 +257,43 @@ class ChatModelLangchain(BaseChatModel):
                 tool_node = ToolNode(tools)
 
         async def call_model(state: MessagesState):
-            try:
-                messages = state["messages"]
-                # 在消息列表开头添加系统提示词
-                system_prompt_manager = SystemPromptManager(self.plugin_dir)
-                system_prompt = system_prompt_manager.get_system_prompt()
-                if not any(isinstance(msg, SystemMessage) for msg in messages):
-                    messages = [SystemMessage(content=system_prompt)] + messages
-                response = await model_with_tools.ainvoke(messages)
-                return {"messages": [response]}
-            except Exception as e:
-                print(f"调用模型时出错: {e}")
-                raise Exception(f"模型调用失败: {str(e)}")
+            messages = state["messages"]
+            # 在消息列表开头添加系统提示词
+            system_prompt_manager = SystemPromptManager(self.plugin_dir)
+            system_prompt = system_prompt_manager.get_system_prompt()
+            if not any(isinstance(msg, SystemMessage) for msg in messages):
+                messages = [SystemMessage(content=system_prompt)] + messages
+            print(f"{system_prompt}")
+            response = await model_with_tools.ainvoke(messages)
+            return {"messages": [response]}
 
         def should_continue(state: MessagesState):
-            try:
-                last_message = state["messages"][-1]
-                # 检查是否有工具调用
-                if hasattr(last_message, "tool_calls") and last_message.tool_calls:
-                    return "tools" if tool_node else END
-                # 如果没有工具调用，直接结束
-                return END
-            except Exception as e:
-                print(f"判断是否继续时出错: {e}")
-                return END
+            last_message = state["messages"][-1]
+            # 检查是否有工具调用
+            if hasattr(last_message, "tool_calls") and last_message.tool_calls:
+                return "tools" if tool_node else END
+            # 如果没有工具调用，直接结束
+            return END
 
-        try:
-            builder = StateGraph(MessagesState) # type: ignore
-            builder.add_node("call_model", call_model)  # type: ignore
-            if tool_node:
-                builder.add_node("tools", tool_node)
+        builder = StateGraph(MessagesState)         # type: ignore
+        builder.add_node("call_model", call_model)  # type: ignore
+        if tool_node:
+            builder.add_node("tools", tool_node)
 
-            builder.add_edge(START, "call_model")
-            builder.add_conditional_edges(
-                "call_model",
-                should_continue,
-                {
-                    "tools": "tools" if tool_node else END,
-                    END: END,
-                }
-            )
-            if tool_node:
-                builder.add_edge("tools", "call_model")
+        builder.add_edge(START, "call_model")
+        builder.add_conditional_edges(
+            "call_model",
+            should_continue,
+            {
+                "tools": "tools" if tool_node else END,
+                END: END,
+            }
+        )
+        if tool_node:
+            builder.add_edge("tools", "call_model")
 
-            self.graph = builder.compile()
-            return self.graph
-        except Exception as e:
-            print(f"构建图时出错: {e}")
-            raise Exception(f"图构建失败: {str(e)}")
+        self.graph = builder.compile()
+        return self.graph
 
     async def recognize_image_with_prompt(self, image_url: str, prompt: str = "请描述这张图片"):
         """使用视觉模型识别图片并结合用户问题"""
@@ -385,10 +322,7 @@ class ChatModelLangchain(BaseChatModel):
     async def useModel(self, msg: GroupMessage, user_input: str):
         """使用 LangChain + MCP 处理消息"""
         # 重新加载配置
-        try:
-            self.config_manager.reload_config()
-        except Exception as e:
-            print(f"重新加载配置时出错: {e}")
+        self.config_manager.reload_config()
         
         try:
             graph = await self._init_graph()
@@ -398,20 +332,17 @@ class ChatModelLangchain(BaseChatModel):
 
             # 添加历史记录
             if hasattr(msg, 'user_id'):
-                try:
-                    history = self._get_user_history(msg.user_id)
-                    for item in history:
-                        if item["role"] == "user":
-                            # 确保用户消息内容有效
-                            if item.get("content"):
-                                messages.append(HumanMessage(content=item["content"]))
-                        elif item["role"] == "assistant":
-                            # 确保助手消息内容有效
-                            if item.get("content"):
-                                messages.append(AIMessage(content=item["content"]))
-                        # system message 会在 call_model 中添加
-                except Exception as e:
-                    print(f"加载用户历史记录时出错: {e}")
+                history = self._get_user_history(msg.user_id)
+                for item in history:
+                    if item["role"] == "user":
+                        # 确保用户消息内容有效
+                        if item.get("content"):
+                            messages.append(HumanMessage(content=item["content"]))
+                    elif item["role"] == "assistant":
+                        # 确保助手消息内容有效
+                        if item.get("content"):
+                            messages.append(AIMessage(content=item["content"]))
+                    # system message 会在 call_model 中添加
 
             # 添加当前用户输入
             messages.append(HumanMessage(content=user_input))
@@ -422,16 +353,12 @@ class ChatModelLangchain(BaseChatModel):
             )
 
             reply = self._clean_reply(response["messages"][-1].content)
-            try:
-                self._save_conversation_to_history(msg, user_input, reply)
-            except Exception as e:
-                print(f"保存对话历史时出错: {e}")
+            self._save_conversation_to_history(msg, user_input, reply)
 
-            return reply
         except Exception as e:
             # 使用通用错误处理方法
             reply = self._handle_model_error(e)
-            return reply
+        return reply
 
 
 class ChatModel(BaseChatModel):
@@ -521,11 +448,7 @@ class ChatModel(BaseChatModel):
     async def useModel(self, msg: GroupMessage, user_input: str):
         """使用模型处理消息，具有记忆能力"""
         # 动态加载配置
-        try:
-            current_config = self.config_manager.load_config_file()
-        except Exception as e:
-            print(f"加载配置时出错: {e}")
-            return "配置加载失败，请检查配置文件"
+        current_config = self.config_manager.load_config_file()
         
         try:
             # 构建消息列表，包含历史记录
@@ -543,13 +466,9 @@ class ChatModel(BaseChatModel):
             reply = self._clean_reply(response.choices[0].message.content.strip())
 
             # 保存当前对话到历史记录
-            try:
-                self._save_conversation_to_history(msg, user_input, reply, is_image=False)
-            except Exception as e:
-                print(f"保存对话历史时出错: {e}")
+            self._save_conversation_to_history(msg, user_input, reply, is_image=False)
 
-            return reply
         except Exception as e:
             # 使用通用错误处理方法
             reply = self._handle_model_error(e)
-            return reply
+        return reply

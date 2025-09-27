@@ -60,6 +60,9 @@ ModelChat/
 [Magneto](https://fmcf.cc)
 
 ## 更新日志
+- 2.4.0
+  - 新增 Markdown 支持
+  - 优化 代码结构
 - 2.3.0
   - 修复 历史记录缓存 Bug
   - 新增 配置动态加载（以适配 WebUI)

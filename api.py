@@ -1,6 +1,6 @@
 from .chat import ChatModel, ChatModelLangchain
 from .utils import ChatUtils, ConfigManager, SystemPromptManager
-import os, json
+import os, yaml, json
 
 class ModelChatAPI:
     """
@@ -9,8 +9,10 @@ class ModelChatAPI:
     
     def __init__(self, plugin_dir):
         self.plugin_dir = plugin_dir
-        self.config_manager = ConfigManager(plugin_dir)
-        self.config = self.config_manager.load_config_file()
+        config_path = os.path.join(plugin_dir, 'config.yml')
+        
+        with open(config_path, 'r', encoding='utf-8') as f:
+            self.config = yaml.safe_load(f)
         
         # 根据配置决定使用哪个模型类
         if self.config.get('enable_mcp', True):
@@ -21,7 +23,7 @@ class ModelChatAPI:
             print("MCP 已禁用")
             
         self.chat_utils = ChatUtils(plugin_dir)
-        self.system_prompt_manager = SystemPromptManager(plugin_dir)
+        self.config_manager = ConfigManager(plugin_dir)
     
     async def generate_response(self, user_id, message, group_id=None):
         """
@@ -55,7 +57,24 @@ class ModelChatAPI:
             return "输入包含违禁内容"
         
         # 生成回复
-        reply = await self.chat_utils.generate_response(mock_msg, self.chat_model_instance, processed_input)
+        try:
+            # 如果processed_input已经是视觉模型的回复，则直接返回
+            if (hasattr(mock_msg, 'message') and 
+                isinstance(mock_msg.message, list) and 
+                any(isinstance(segment, dict) and segment.get("type") == "image" 
+                    for segment in mock_msg.message)):
+                reply = processed_input if processed_input is not None else "抱歉，我无法处理这张图片。"
+            else:
+                # 否则使用普通模型处理
+                reply = await self.chat_model_instance.useModel(mock_msg, processed_input)
+                
+                # 确保回复不是None
+                if reply is None:
+                    reply = "抱歉，我没有理解您的意思。"
+                    
+        except Exception as e:
+            reply = f"抱歉，处理您的请求时出现了错误: {str(e)}"
+        
         return reply
     
     def get_user_history(self, user_id):
@@ -118,7 +137,8 @@ class ModelChatAPI:
         Returns:
             str: 当前系统提示词
         """
-        return self.system_prompt_manager.get_system_prompt()
+        system_prompt_manager = SystemPromptManager(self.plugin_dir)
+        return system_prompt_manager.get_system_prompt()
     
     def set_system_prompt(self, prompt):
         """
@@ -130,7 +150,9 @@ class ModelChatAPI:
         Returns:
             bool: 是否设置成功
         """
-        return self.system_prompt_manager.set_system_prompt(prompt)
+        system_prompt_manager = SystemPromptManager(self.plugin_dir)
+        system_prompt_manager.set_system_prompt(prompt)
+        return True
     
     def get_config(self):
         """
@@ -177,7 +199,7 @@ class ModelChatAPI:
         """
         data_config = self.config_manager.load_data()
         admins = data_config.get('admins', [])
-        return self.chat_utils.is_admin(user_id, admins)
+        return str(user_id) in admins or str(user_id) == self.config.get('root', '')
 
     def reload_all_configs(self):
         """
@@ -186,4 +208,16 @@ class ModelChatAPI:
         Returns:
             bool: 是否重新加载成功
         """
-        return self.config_manager.reload_all_configs(self.chat_model_instance)
+        try:
+            # 重新加载主配置文件
+            with open(self.config_manager.get_config_path(), 'r', encoding='utf-8') as f:
+                self.config = yaml.safe_load(f)
+            
+            # 通知chat_model_instance重新加载配置
+            if hasattr(self, 'chat_model_instance'):
+                self.config_manager.reload_all_configs(self.chat_model_instance)
+            
+            return True
+        except Exception as e:
+            print(f"重新加载所有配置出错: {e}")
+            return False

@@ -5,8 +5,6 @@
 /web/static/css/font-awesome.css
 /web/static/css/auth.all.css
 /web/static/css/index.all.css
-/web/static/js/index.lib.js
-/web/static/js/login.lib.js
 /web/static/js/set_password.lib.js
 config.yml
 mcp_config.json

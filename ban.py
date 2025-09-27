@@ -1,164 +1,144 @@
+# 优化后的 ban.py
 from ncatbot.core import GroupMessage
 from ncatbot.utils import config
 from .utils import ConfigManager
-import time
+import threading
+from typing import Dict, List
+
 
 class BanManager:
     def __init__(self, plugin_dir):
         self.plugin_dir = plugin_dir
         self.config_manager = ConfigManager(plugin_dir)
         self.banlist_file = self.config_manager.get_data_path()
-        # 使用集合代替列表以提高查找效率
-        self._banned_groups = set()
-        self._banned_users = set()
-        self._blocked_words = []
-        self._last_load_time = 0
-        self._cache_duration = 60  # 缓存60秒
-        self._load_banlist()
+        self.banlist = self._load_banlist()
+        # 添加线程锁以保证并发安全
+        self.lock = threading.Lock()
 
-    def _load_banlist(self, force=False):
+    def _load_banlist(self) -> Dict[str, List[str]]:
         """加载ban列表"""
-        # 如果不是强制加载且缓存未过期，则不重新加载
-        current_time = time.time()
-        if not force and (current_time - self._last_load_time) < self._cache_duration:
-            return {
-                "banned_groups": self._banned_groups,
-                "banned_users": self._banned_users,
-                "blocked_words": self._blocked_words
-            }
-            
         try:
             # 通过ConfigManager加载数据
             data = self.config_manager.load_data()
-            # 使用集合提高查找效率
-            self._banned_groups = set(data.get("banned_groups", []))
-            self._banned_users = set(data.get("banned_users", []))
-            # 保持违禁词为列表，因为检查时需要遍历
-            self._blocked_words = data.get("blocked_words", [])
-            self._last_load_time = current_time
+            # 确保所有必要的键都存在
+            required_keys = ["banned_groups", "banned_users", "blocked_words"]
+            for key in required_keys:
+                if key not in data:
+                    data[key] = []
+
             return data
         except Exception as e:
             print(f"加载ban列表出错: {e}")
-        # 出错时返回当前缓存数据
-        return {
-            "banned_groups": self._banned_groups,
-            "banned_users": self._banned_users,
-            "blocked_words": self._blocked_words
-        }
+        return {"banned_groups": [], "banned_users": [], "blocked_words": []}
 
-    def _save_banlist(self):
+    def _save_banlist(self) -> bool:
         """保存ban列表"""
         try:
-            # 构造要保存的数据
-            data = {
-                "banned_groups": list(self._banned_groups),
-                "banned_users": list(self._banned_users),
-                "blocked_words": self._blocked_words,
-            }
             # 通过ConfigManager保存数据
-            self.config_manager.save_data(data)
-            self._last_load_time = time.time()  # 更新最后保存时间
+            with self.lock:
+                self.config_manager.save_data(self.banlist)
+            return True
         except Exception as e:
             print(f"保存ban列表出错: {e}")
+            return False
 
-    def is_banned(self, msg: GroupMessage):
+    def is_banned(self, msg: GroupMessage) -> bool:
         """检查用户或群组是否被ban"""
-        # 使用缓存机制加载最新的ban列表
-        latest_banlist = self._load_banlist()
+        # 使用缓存避免频繁读取文件
+        with self.lock:
+            current_banlist = self.banlist
 
         # 检查用户是否被ban
-        if hasattr(msg, 'user_id') and str(msg.user_id) in latest_banlist["banned_users"]:
+        if hasattr(msg, 'user_id') and str(msg.user_id) in current_banlist["banned_users"]:
             return True
 
         # 检查群组是否被ban
-        if hasattr(msg, 'group_id') and str(msg.group_id) in latest_banlist["banned_groups"]:
+        if hasattr(msg, 'group_id') and str(msg.group_id) in current_banlist["banned_groups"]:
             return True
 
         return False
 
-    def check_blocked_words(self, text):
+    def check_blocked_words(self, text: str) -> bool:
         """检查文本是否包含违禁词"""
-        # 使用缓存机制加载最新的违禁词列表
-        latest_banlist = self._load_banlist()
+        # 使用缓存避免频繁读取文件
+        with self.lock:
+            blocked_words = self.banlist["blocked_words"]
 
-        for block_word in latest_banlist["blocked_words"]:
+        for block_word in blocked_words:
             if block_word in text:
                 return True
         return False
 
-    def add_ban(self, ban_type, target):
+    def add_ban(self, ban_type: str, target: str) -> bool:
         """添加ban项"""
-        changed = False
-        if ban_type == "group":
-            if target not in self._banned_groups:
-                self._banned_groups.add(target)
-                changed = True
-        elif ban_type == "user":
-            if target not in self._banned_users:
-                self._banned_users.add(target)
-                changed = True
-        
-        if changed:
-            self._save_banlist()
-            return True
+        with self.lock:
+            if ban_type == "group":
+                if target not in self.banlist["banned_groups"]:
+                    self.banlist["banned_groups"].append(target)
+                    return self._save_banlist()
+                return False
+            elif ban_type == "user":
+                if target not in self.banlist["banned_users"]:
+                    self.banlist["banned_users"].append(target)
+                    return self._save_banlist()
+                return False
         return False
 
-    def add_blocked_word(self, word):
+    def add_blocked_word(self, word: str) -> bool:
         """添加违禁词"""
-        if word not in self._blocked_words:
-            self._blocked_words.append(word)
-            self._save_banlist()
-            return True
+        with self.lock:
+            if word not in self.banlist["blocked_words"]:
+                self.banlist["blocked_words"].append(word)
+                return self._save_banlist()
         return False
 
-    def remove_ban(self, ban_type, target):
+    def remove_ban(self, ban_type: str, target: str) -> bool:
         """移除ban项"""
-        changed = False
-        if ban_type == "group":
-            if target in self._banned_groups:
-                self._banned_groups.discard(target)
-                changed = True
-        elif ban_type == "user":
-            if target in self._banned_users:
-                self._banned_users.discard(target)
-                changed = True
-        
-        if changed:
-            self._save_banlist()
-            return True
+        with self.lock:
+            if ban_type == "group":
+                if target in self.banlist["banned_groups"]:
+                    self.banlist["banned_groups"].remove(target)
+                    return self._save_banlist()
+                return False
+            elif ban_type == "user":
+                if target in self.banlist["banned_users"]:
+                    self.banlist["banned_users"].remove(target)
+                    return self._save_banlist()
+                return False
         return False
 
-    def remove_blocked_word(self, word):
+    def remove_blocked_word(self, word: str) -> bool:
         """移除违禁词"""
-        if word in self._blocked_words:
-            self._blocked_words.remove(word)
-            self._save_banlist()
-            return True
+        with self.lock:
+            if word in self.banlist["blocked_words"]:
+                self.banlist["blocked_words"].remove(word)
+                return self._save_banlist()
         return False
 
-    def get_banlist(self):
+    def get_banlist(self) -> Dict[str, List[str]]:
         """获取ban列表"""
-        # 强制重新加载数据以获取最新列表
-        self._load_banlist(force=True)
-        return {
-            "banned_groups": list(self._banned_groups),
-            "banned_users": list(self._banned_users),
-            "blocked_words": self._blocked_words
-        }
+        with self.lock:
+            # 返回副本以防止外部修改
+            return {
+                "banned_groups": self.banlist["banned_groups"].copy(),
+                "banned_users": self.banlist["banned_users"].copy(),
+                "blocked_words": self.banlist["blocked_words"].copy()
+            }
 
-    def get_blocked_words(self):
+    def get_blocked_words(self) -> List[str]:
         """获取违禁词列表"""
-        return self._blocked_words.copy()
+        with self.lock:
+            return self.banlist["blocked_words"].copy()
 
-    def handle_ban_command(self, msg, admins):
+    def handle_ban_command(self, msg, admins) -> tuple:
         """处理ban命令"""
         return self._handle_ban_unban_command(msg, admins, is_ban=True)
 
-    def handle_unban_command(self, msg, admins):
+    def handle_unban_command(self, msg, admins) -> tuple:
         """处理unban命令"""
         return self._handle_ban_unban_command(msg, admins, is_ban=False)
 
-    def _handle_ban_unban_command(self, msg, admins, is_ban=True):
+    def _handle_ban_unban_command(self, msg, admins, is_ban=True) -> tuple:
         """处理ban/unban命令的通用函数"""
         # 检查是否为管理员或超级管理员
         if hasattr(msg, 'user_id') and str(msg.user_id) not in admins and str(msg.user_id) != config.root:
