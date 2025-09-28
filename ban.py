@@ -1,4 +1,3 @@
-# 优化后的 ban.py
 from ncatbot.core import GroupMessage
 from ncatbot.utils import config
 from .utils import ConfigManager

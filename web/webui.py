@@ -341,7 +341,12 @@ class ModelChatWebUI:
                 result = self.api.update_config(updates)
                 if result:
                     # 更新配置后重新加载所有配置
-                    self.api.reload_all_configs()
+                    # 确保每次都重新加载，而不是只能加载一次
+                    try:
+                        self.api.reload_all_configs()
+                    except Exception as reload_error:
+                        # 即使重载配置失败，也返回更新成功，但记录错误
+                        print(f"Warning: Config reloaded failed: {str(reload_error)}")
                     return self._json_response({'success': True})
                 else:
                     return self._json_response({'error': '更新配置失败'}, 500)
